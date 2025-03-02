@@ -558,40 +558,44 @@ runService.RenderStepped:Connect(function()
 end)
 
 function setupTracers()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
 	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
 		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
 			local root = otherPlayer.Character.HumanoidRootPart
 			local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
 			local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
 			local isAlive = humanoid and humanoid.Health > 0
+
 			if (not features.Visuals.TeamCheck or not isTeammate) and 
 				(not features.Visuals.DeadCheck or isAlive) then
 				local tracer = tracerLines[otherPlayer]
-				local camera = workspace.CurrentCamera
-				if camera then
-					local screenPos, onScreen = camera:WorldToScreenPoint(root.Position)
-					if onScreen or (not onScreen and checkThroughWalls(root.Position, player.Character and player.Character.HumanoidRootPart)) then
-						if not tracer then
-							tracer = Instance.new("Part")
-							tracer.Anchored = true
-							tracer.CanCollide = false
-							tracer.Transparency = 0.5
-							tracer.Color = tracerColor
-							tracer.Parent = workspace
-							tracerLines[otherPlayer] = tracer
-						end
-						local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
-						local worldPos, _ = camera:WorldToScreenPoint(root.Position)
-						local endPos = Vector2.new(worldPos.X, worldPos.Y)
-						local direction = (endPos - startPos).Unit
-						local distance = (endPos - startPos).Magnitude
-						tracer.Size = Vector3.new(0.1, 0.1, distance / 10)
-						tracer.CFrame = CFrame.lookAt(camera.CFrame.Position, root.Position) * CFrame.Angles(0, math.pi / 2, 0) * CFrame.new(0, 0, -distance / 20)
-					else
-						if tracer then
-							tracer:Destroy()
-							tracerLines[otherPlayer] = nil
-						end
+				local screenPos, onScreen = camera:WorldToScreenPoint(root.Position)
+
+				if onScreen or (not onScreen and checkThroughWalls(root.Position, player.Character and player.Character.HumanoidRootPart)) then
+					if not tracer then
+						tracer = Instance.new("Part")
+						tracer.Anchored = true
+						tracer.CanCollide = false
+						tracer.Transparency = 0.5
+						tracer.Color = tracerColor
+						tracer.Material = Enum.Material.Neon
+						tracer.Parent = workspace
+						tracerLines[otherPlayer] = tracer
+					end
+
+					local startPos = camera.CFrame.Position + (camera.CFrame.LookVector * 2)
+					local endPos = root.Position
+					local direction = (endPos - startPos).Unit
+					local distance = (endPos - startPos).Magnitude
+
+					tracer.Size = Vector3.new(0.1, 0.1, distance)
+					tracer.CFrame = CFrame.new(startPos + (direction * distance / 2), endPos)
+				else
+					if tracer then
+						tracer:Destroy()
+						tracerLines[otherPlayer] = nil
 					end
 				end
 			else
@@ -610,10 +614,12 @@ function setupTracers()
 end
 
 function cleanupTracers()
-	for player, tracer in pairs(tracerLines) do
-		tracer:Destroy()
-		tracerLines[player] = nil
+	for _, tracer in pairs(tracerLines) do
+		if tracer then
+			tracer:Destroy()
+		end
 	end
+	tracerLines = {}
 end
 
 local function checkThroughWalls(targetPos, sourcePos)
@@ -811,7 +817,7 @@ player.CharacterRemoving:Connect(function(character)
 	end
 end)
 
--- Tracer Color Update (Added Missing Function)
+-- Tracer Color Update
 function updateTracerColor()
 	tracerColor = Color3.fromRGB(255, 255, 255)
 end
