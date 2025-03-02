@@ -4,7 +4,7 @@ local runService = game:GetService("RunService")
 local gui = Instance.new("ScreenGui")
 gui.Name = "CheatGUI"
 gui.ResetOnSpawn = false
-gui.Parent = game.CoreGui -- Ensure GUI works in executor
+gui.Parent = player.PlayerGui
 
 -- Create Main Frame with Scrolling
 local frame = Instance.new("Frame")
@@ -22,174 +22,803 @@ scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollingFrame.ScrollBarThickness = 8
 scrollingFrame.Parent = frame
 
--- Ensure GUI works in executor environment
-if syn and syn.protect_gui then
-    syn.protect_gui(gui)
-end
-
 -- Make GUI Draggable
 local dragging, dragInput, dragStart, startPos
+
 frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
 
 frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
 end)
 
 userInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
+	if dragging and input == dragInput then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
 end)
 
--- GUI Toggle
-userInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Q then
-        frame.Visible = not frame.Visible
-    end
-end)
+-- Tab System
+local tabs = {"Aimbot", "Visuals", "Exploits", "Settings"}
+local currentTab = "Aimbot"
 
--- Feature: Aimbot, ESP, Tracers, FOV, Exploits (Fly, Speed, NoClip, AntiAFK, etc.)
--- Keeping original functionality intact
+local tabButtons = {}
+for i, tabName in ipairs(tabs) do
+	local tabButton = Instance.new("TextButton")
+	tabButton.Size = UDim2.new(0, 75, 0, 30)
+	tabButton.Position = UDim2.new(0, (i-1)*75, 0, 0)
+	tabButton.Text = tabName
+	tabButton.Parent = frame
+	tabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local features = {
-    Aimbot = {Aimlock = false, SilentAim = false, FOVCircle = false},
-    Visuals = {ESP = false, Tracers = false, FOVChanger = false},
-    Exploits = {InfiniteJump = false, Fly = false, NoClip = false, Speed = false}
-}
-
-local function updateFeatures()
-    -- Ensure all features work correctly in executor environment
-    if features.Aimbot.Aimlock then
-        -- Aimbot logic here
-    end
-    if features.Visuals.ESP then
-        -- ESP logic here
-    end
-    if features.Exploits.Fly then
-        -- Fly logic here
-    end
+	tabButton.MouseButton1Click:Connect(function()
+		currentTab = tabName
+		updateGUI()
+		for _, button in pairs(tabButtons) do
+			button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		end
+		tabButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+		tabButton:TweenSize(UDim2.new(0, 80, 0, 32), "Out", "Quad", 0.2, true)
+		task.wait(0.2)
+		tabButton:TweenSize(UDim2.new(0, 75, 0, 30), "Out", "Quad", 0.2, true)
+	end)
+	table.insert(tabButtons, tabButton)
 end
 
-runService.RenderStepped:Connect(updateFeatures)
+-- Feature Toggles
+local features = {
+	Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = false, FOVCircle = false, SilentAim = false},
+	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false},
+	Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
+	Settings = {}
+}
 
--- Anti-AFK Functionality
-game:GetService("Players").LocalPlayer.Idled:Connect(function()
-    game:GetService("VirtualUser"):Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-    task.wait(1)
-    game:GetService("VirtualUser"):Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+local flySpeed = 50
+local walkSpeed = 16
+local fov = 70
+local antiAFKInterval = 30
+local guiColor = Color3.fromRGB(40, 40, 40)
+local tracerColor = Color3.fromRGB(255, 255, 255)
+local fovCircleSize = 100
+local fovCircleColor = Color3.fromRGB(255, 255, 255)
+
+local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
+
+function createToggle(name, position, parent, tabName, callback, color)
+	local toggle = Instance.new("TextButton")
+	toggle.Size = UDim2.new(0, 200, 0, 30)
+	toggle.Position = position
+	toggle.Text = name .. ": " .. (features[tabName][name] and "ON" or "OFF")
+	toggle.Parent = parent
+	toggle.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+	toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+	toggle.MouseButton1Click:Connect(function()
+		callback(toggle)
+		toggle:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
+		task.wait(0.2)
+		toggle:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+	end)
+	return toggle
+end
+
+function createSlider(name, position, parent, min, max, default, callback, color)
+	local sliderFrame = Instance.new("Frame")
+	sliderFrame.Size = UDim2.new(0, 200, 0, 30)
+	sliderFrame.Position = position
+	sliderFrame.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+	sliderFrame.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 100, 0, 30)
+	label.Position = UDim2.new(0, 0, 0, 0)
+	label.Text = name .. ": " .. default
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Parent = sliderFrame
+
+	local slider = Instance.new("TextButton")
+	slider.Size = UDim2.new(0, 100, 0, 10)
+	slider.Position = UDim2.new(0, 100, 0, 10)
+	slider.Text = ""
+	slider.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
+	slider.Parent = sliderFrame
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+	fill.Parent = slider
+
+	local draggingSlider = false
+	slider.MouseButton1Down:Connect(function()
+		draggingSlider = true
+	end)
+
+	userInputService.InputChanged:Connect(function(input)
+		if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local relativeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+			local value = min + (max - min) * relativeX
+			fill.Size = UDim2.new(relativeX, 0, 1, 0)
+			local roundedValue = math.floor(value + 0.5)
+			label.Text = name .. ": " .. roundedValue
+			callback(roundedValue)
+			slider:TweenSize(UDim2.new(0, 105, 0, 12), "Out", "Quad", 0.1, true)
+			task.wait(0.1)
+			slider:TweenSize(UDim2.new(0, 100, 0, 10), "Out", "Quad", 0.1, true)
+		end
+	end)
+
+	userInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			draggingSlider = false
+		end
+	end)
+
+	return sliderFrame
+end
+
+function updateGUI()
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	for _, child in pairs(scrollingFrame:GetChildren()) do
+		if child:IsA("GuiObject") and child.Name ~= "CheatGUI" then
+			child:Destroy()
+		end
+	end
+
+	local yOffset = 0
+	print("Updating GUI for tab:", currentTab)
+	if currentTab == "Aimbot" then
+		frame.Name = "Aimbot"
+		aimlockToggle = createToggle("Aimlock", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+			features.Aimbot.Aimlock = not features.Aimbot.Aimlock
+			toggle.Text = "Aimlock: " .. (features.Aimbot.Aimlock and "ON" or "OFF")
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+		teamCheckToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+			features.Aimbot.TeamCheck = not features.Aimbot.TeamCheck
+			toggle.Text = "Team Check: " .. (features.Aimbot.TeamCheck and "ON" or "OFF")
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+		deadCheckToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+			features.Aimbot.DeadCheck = not features.Aimbot.DeadCheck
+			toggle.Text = "Dead Check: " .. (features.Aimbot.DeadCheck and "ON" or "OFF")
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+		fovCircleToggle = createToggle("FOVCircle", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+			features.Aimbot.FOVCircle = not features.Aimbot.FOVCircle
+			toggle.Text = "FOV Circle: " .. (features.Aimbot.FOVCircle and "ON" or "OFF")
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+		fovCircleSlider = createSlider("FOV Circle Size", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 640, fovCircleSize, function(value)
+			fovCircleSize = value
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+		silentAimToggle = createToggle("SilentAim", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+			features.Aimbot.SilentAim = not features.Aimbot.SilentAim
+			toggle.Text = "Silent Aim: " .. (features.Aimbot.SilentAim and "ON" or "OFF")
+		end, Color3.fromRGB(255, 100, 100))
+		yOffset += 50
+	elseif currentTab == "Visuals" then
+		frame.Name = "Visuals"
+		espToggle = createToggle("ESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.ESP = not features.Visuals.ESP
+			toggle.Text = "ESP: " .. (features.Visuals.ESP and "ON" or "OFF")
+			if features.Visuals.ESP then
+				setupESP()
+			else
+				cleanupESP()
+			end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		renderLocallyToggle = createToggle("RenderLocally", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.RenderLocally = not features.Visuals.RenderLocally
+			toggle.Text = "Render Locally: " .. (features.Visuals.RenderLocally and "ON" or "OFF")
+			if features.Visuals.ESP then setupESP() end
+			if features.Visuals.Tracers then setupTracers() end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		tracersToggle = createToggle("Tracers", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.Tracers = not features.Visuals.Tracers
+			toggle.Text = "Tracers: " .. (features.Visuals.Tracers and "ON" or "OFF")
+			if features.Visuals.Tracers then
+				setupTracers()
+			else
+				cleanupTracers()
+			end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		fovToggle = createToggle("FOVChanger", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.FOVChanger = not features.Visuals.FOVChanger
+			toggle.Text = "FOV Changer: " .. (features.Visuals.FOVChanger and "ON" or "OFF")
+			applyFOV()
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		fovSlider = createSlider("FOV", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 200, fov, function(value)
+			fov = value
+			applyFOV()
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		teamCheckVisualToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.TeamCheck = not features.Visuals.TeamCheck
+			toggle.Text = "Team Check: " .. (features.Visuals.TeamCheck and "ON" or "OFF")
+			if features.Visuals.ESP then setupESP() end
+			if features.Visuals.Tracers then setupTracers() end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		deadCheckVisualToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.DeadCheck = not features.Visuals.DeadCheck
+			toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
+			if features.Visuals.ESP then setupESP() end
+			if features.Visuals.Tracers then setupTracers() end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+	elseif currentTab == "Exploits" then
+		frame.Name = "Exploits"
+		infiniteJumpToggle = createToggle("InfiniteJump", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.InfiniteJump = not features.Exploits.InfiniteJump
+			toggle.Text = "Infinite Jump: " .. (features.Exploits.InfiniteJump and "ON" or "OFF")
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		spinbotToggle = createToggle("Spinbot", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.Spinbot = not features.Exploits.Spinbot
+			toggle.Text = "Spinbot: " .. (features.Exploits.Spinbot and "ON" or "OFF")
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		flyToggle = createToggle("Fly", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.Fly = not features.Exploits.Fly
+			toggle.Text = "Fly: " .. (features.Exploits.Fly and "ON" or "OFF")
+			toggleFly(features.Exploits.Fly)
+			print("Fly toggled to:", features.Exploits.Fly)
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		flySpeedSlider = createSlider("Fly Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, flySpeed, function(value)
+			flySpeed = value
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		noClipToggle = createToggle("NoClip", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.NoClip = not features.Exploits.NoClip
+			toggle.Text = "No Clip: " .. (features.Exploits.NoClip and "ON" or "OFF")
+			toggleNoClip(features.Exploits.NoClip)
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		speedToggle = createToggle("Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.Speed = not features.Exploits.Speed
+			toggle.Text = "Speed: " .. (features.Exploits.Speed and "ON" or "OFF")
+			applySpeed()
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		speedSlider = createSlider("Walk Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, walkSpeed, function(value)
+			walkSpeed = value
+			applySpeed()
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		antiAFKToggle = createToggle("AntiAFK", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+			features.Exploits.AntiAFK = not features.Exploits.AntiAFK
+			toggle.Text = "Anti-AFK: " .. (features.Exploits.AntiAFK and "ON" or "OFF")
+			toggleAntiAFK(features.Exploits.AntiAFK)
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+		antiAFKSlider = createSlider("Anti-AFK Interval", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 60, antiAFKInterval, function(value)
+			antiAFKInterval = value
+		end, Color3.fromRGB(100, 100, 255))
+		yOffset += 50
+	elseif currentTab == "Settings" then
+		frame.Name = "Settings"
+	end
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(yOffset, 400))
+	print("CanvasSize set to:", scrollingFrame.CanvasSize.Y.Offset)
+end
+
+-- GUI Toggle with Animations
+userInputService.InputBegan:Connect(function(input)
+	if input.KeyCode == Enum.KeyCode.Q then
+		if frame.Visible then
+			frame:TweenPosition(UDim2.new(0.5, -150, 1.5, -200), "Out", "Quad", 0.5, true, function()
+				frame.Visible = false
+			end)
+		else
+			frame.Visible = true
+			frame.Position = UDim2.new(0.5, -150, 1.5, -200)
+			frame:TweenPosition(UDim2.new(0.5, -150, 0.5, -200), "Out", "Quad", 0.5, true)
+		end
+	end
 end)
+
+-- Aimbot Functionality
+userInputService.InputBegan:Connect(function(input)
+	if features.Aimbot.Aimlock and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local target = getNearestPlayer(true)
+		if target and target.Character and target.Character:FindFirstChild("Head") then
+			local humanoid = target.Character:FindFirstChild("Humanoid")
+			if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
+				(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+				if features.Aimbot.FOVCircle then
+					local camera = workspace.CurrentCamera
+					if camera then
+						local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
+						local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+						local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+						if distance <= fovCircleSize / 2 then
+							camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+						end
+					end
+				else
+					local camera = workspace.CurrentCamera
+					if camera then
+						camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+					end
+				end
+			end
+		end
+	end
+
+	if features.Aimbot.SilentAim and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local target = getNearestPlayer(true)
+		if target and target.Character and target.Character:FindFirstChild("Head") then
+			local humanoid = target.Character:FindFirstChild("Humanoid")
+			if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
+				(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+				if features.Aimbot.FOVCircle then
+					local camera = workspace.CurrentCamera
+					if camera then
+						local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
+						local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+						local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+						if distance <= fovCircleSize / 2 then
+							userInputService.MouseDeltaSensitivity = 0
+							userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+							task.wait(0.1)
+							userInputService.MouseBehavior = Enum.MouseBehavior.Default
+							userInputService.MouseDeltaSensitivity = 1
+						end
+					end
+				else
+					userInputService.MouseDeltaSensitivity = 0
+					userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+					task.wait(0.1)
+					userInputService.MouseBehavior = Enum.MouseBehavior.Default
+					userInputService.MouseDeltaSensitivity = 1
+				end
+			end
+		end
+	end
+end)
+
+local function getNearestPlayer(ignoreWalls)
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	local character = player.Character
+
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+			if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+				if (not features.Aimbot.TeamCheck or (player.Team ~= otherPlayer.Team)) and 
+					(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+					local distance = (character.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
+					if ignoreWalls then
+						local ray = Ray.new(character.HumanoidRootPart.Position, (otherPlayer.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit * distance)
+						local hit, pos = workspace:Raycast(ray.Origin, ray.Direction * distance, RaycastParams.new({
+							FilterDescendantsInstances = {character},
+							FilterType = Enum.RaycastFilterType.Blacklist,
+							IgnoreWater = true
+						}))
+						if not hit or (hit and hit.Instance:IsDescendantOf(otherPlayer.Character)) then
+							if distance < shortestDistance then
+								shortestDistance = distance
+								closestPlayer = otherPlayer
+							end
+						end
+					else
+						if distance < shortestDistance then
+							shortestDistance = distance
+							closestPlayer = otherPlayer
+						end
+					end
+				end
+			end
+		end
+	end
+	return closestPlayer
+end
+
+-- Draw FOV Circle
+local fovCircle = nil
+
+runService.RenderStepped:Connect(function()
+	if features.Aimbot.FOVCircle and workspace.CurrentCamera then
+		local camera = workspace.CurrentCamera
+		if not fovCircle then
+			fovCircle = Instance.new("Frame")
+			fovCircle.Size = UDim2.new(0, fovCircleSize, 0, fovCircleSize)
+			fovCircle.Position = UDim2.new(0.5, -fovCircleSize / 2, 0.5, -fovCircleSize / 2)
+			fovCircle.BackgroundTransparency = 1
+			fovCircle.ZIndex = 5
+			fovCircle.Parent = gui
+
+			local uiStroke = Instance.new("UIStroke")
+			uiStroke.Thickness = 2
+			uiStroke.Color = fovCircleColor
+			uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			uiStroke.Parent = fovCircle
+
+			local uiCorner = Instance.new("UICorner")
+			uiCorner.CornerRadius = UDim.new(1, 0)
+			uiCorner.Parent = fovCircle
+		else
+			fovCircle.Size = UDim2.new(0, fovCircleSize, 0, fovCircleSize)
+			fovCircle.Position = UDim2.new(0.5, -fovCircleSize / 2, 0.5, -fovCircleSize / 2)
+			local uiStroke = fovCircle:FindFirstChildOfClass("UIStroke")
+			if uiStroke then uiStroke.Color = fovCircleColor end
+		end
+	elseif fovCircle then
+		fovCircle:Destroy()
+		fovCircle = nil
+	end
+end)
+
+function updateFOVCircleColor()
+	fovCircleColor = Color3.fromRGB(255, 255, 255)
+	if fovCircle then
+		local uiStroke = fovCircle:FindFirstChildOfClass("UIStroke")
+		if uiStroke then uiStroke.Color = fovCircleColor end
+	end
+end
+
+-- ESP Functionality
+local espHighlights = {}
+runService.RenderStepped:Connect(function()
+	if features.Visuals.ESP then
+		setupESP()
+	else
+		cleanupESP()
+	end
+end)
+
+function setupESP()
+	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+		local shouldRender = false
+		local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
+		local humanoid = otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid")
+		local isAlive = humanoid and humanoid.Health > 0
+
+		if otherPlayer ~= player then
+			shouldRender = (not features.Visuals.TeamCheck or not isTeammate) and 
+				(not features.Visuals.DeadCheck or isAlive)
+		elseif features.Visuals.RenderLocally then
+			shouldRender = (not features.Visuals.TeamCheck or not isTeammate) and 
+				(not features.Visuals.DeadCheck or isAlive)
+		end
+
+		if shouldRender and otherPlayer.Character then
+			local character = otherPlayer.Character
+			local rootPart = character:FindFirstChild("HumanoidRootPart")
+			if rootPart then
+				local highlight = espHighlights[otherPlayer]
+				local camera = workspace.CurrentCamera
+				if camera then
+					local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
+					if onScreen or (not onScreen and checkThroughWalls(rootPart.Position, player.Character and player.Character.HumanoidRootPart)) then
+						if not highlight then
+							highlight = Instance.new("Highlight")
+							highlight.Name = "ESPHighlight"
+							highlight.FillColor = isTeammate and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+							highlight.Parent = character
+							espHighlights[otherPlayer] = highlight
+						end
+					elseif highlight then
+						highlight:Destroy()
+						espHighlights[otherPlayer] = nil
+					end
+				end
+			end
+		else
+			local highlight = espHighlights[otherPlayer]
+			if highlight then
+				highlight:Destroy()
+				espHighlights[otherPlayer] = nil
+			end
+		end
+	end
+end
+
+function cleanupESP()
+	for _, highlight in pairs(espHighlights) do
+		if highlight then
+			highlight:Destroy()
+		end
+	end
+	espHighlights = {}
+end
+
+-- Tracers Functionality
+local tracerLines = {}
+runService.RenderStepped:Connect(function()
+	if features.Visuals.Tracers then
+		setupTracers()
+	else
+		cleanupTracers()
+	end
+end)
+
+function setupTracers()
+	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			local root = otherPlayer.Character.HumanoidRootPart
+			local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+			local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
+			local isAlive = humanoid and humanoid.Health > 0
+			if (not features.Visuals.TeamCheck or not isTeammate) and 
+				(not features.Visuals.DeadCheck or isAlive) then
+				local tracer = tracerLines[otherPlayer]
+				local camera = workspace.CurrentCamera
+				if camera then
+					local screenPos, onScreen = camera:WorldToScreenPoint(root.Position)
+					if onScreen or (not onScreen and checkThroughWalls(root.Position, player.Character and player.Character.HumanoidRootPart)) then
+						if not tracer then
+							tracer = Instance.new("Part")
+							tracer.Anchored = true
+							tracer.CanCollide = false
+							tracer.Transparency = 0.5
+							tracer.Color = tracerColor
+							tracer.Parent = workspace
+							tracerLines[otherPlayer] = tracer
+						end
+						local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+						local worldPos, _ = camera:WorldToScreenPoint(root.Position)
+						local endPos = Vector2.new(worldPos.X, worldPos.Y)
+						local direction = (endPos - startPos).Unit
+						local distance = (endPos - startPos).Magnitude
+						tracer.Size = Vector3.new(0.1, 0.1, distance / 10)
+						tracer.CFrame = CFrame.lookAt(camera.CFrame.Position, root.Position) * CFrame.Angles(0, math.pi / 2, 0) * CFrame.new(0, 0, -distance / 20)
+					else
+						if tracer then
+							tracer:Destroy()
+							tracerLines[otherPlayer] = nil
+						end
+					end
+				end
+			else
+				if tracerLines[otherPlayer] then
+					tracerLines[otherPlayer]:Destroy()
+					tracerLines[otherPlayer] = nil
+				end
+			end
+		else
+			if tracerLines[otherPlayer] then
+				tracerLines[otherPlayer]:Destroy()
+				tracerLines[otherPlayer] = nil
+			end
+		end
+	end
+end
+
+function cleanupTracers()
+	for player, tracer in pairs(tracerLines) do
+		tracer:Destroy()
+		tracerLines[player] = nil
+	end
+end
+
+local function checkThroughWalls(targetPos, sourcePos)
+	if not sourcePos or not targetPos then return false end
+	local ray = Ray.new(sourcePos.Position, (targetPos - sourcePos.Position).Unit * (targetPos - sourcePos.Position).Magnitude)
+	local hit, pos = workspace:Raycast(ray.Origin, ray.Direction * (targetPos - sourcePos.Position).Magnitude, RaycastParams.new({
+		FilterDescendantsInstances = {player.Character},
+		FilterType = Enum.RaycastFilterType.Blacklist,
+		IgnoreWater = true
+	}))
+	return not hit or (hit and hit.Instance:IsDescendantOf(game.Players:GetPlayerFromCharacter(targetPos.Parent)))
+end
 
 -- Infinite Jump
 userInputService.JumpRequest:Connect(function()
-    if features.Exploits.InfiniteJump then
-        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
+	if features.Exploits.InfiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
+		player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
 end)
 
--- No Clip
-local function toggleNoClip()
-    if features.Exploits.NoClip then
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
+-- Apply Speed
+function applySpeed()
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		local humanoid = player.Character.Humanoid
+		humanoid.WalkSpeed = features.Exploits.Speed and walkSpeed or 16
+		print("WalkSpeed set to:", humanoid.WalkSpeed)
+	end
 end
 
-runService.Stepped:Connect(toggleNoClip)
-
--- Fly
-local flySpeed = 50
-local bodyVelocity, bodyGyro
-local function toggleFly()
-    if features.Exploits.Fly then
-        local hrp = player.Character.HumanoidRootPart
-        bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Parent = hrp
-
-        bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.CFrame = hrp.CFrame
-        bodyGyro.Parent = hrp
-
-        runService.RenderStepped:Connect(function()
-            local moveDir = Vector3.new()
-            if userInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + workspace.CurrentCamera.CFrame.LookVector end
-            if userInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - workspace.CurrentCamera.CFrame.LookVector end
-            if userInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - workspace.CurrentCamera.CFrame.RightVector end
-            if userInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + workspace.CurrentCamera.CFrame.RightVector end
-            if userInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-            if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
-            bodyVelocity.Velocity = moveDir * flySpeed
-            bodyGyro.CFrame = workspace.CurrentCamera.CFrame
-        end)
-    else
-        if bodyVelocity then bodyVelocity:Destroy() end
-        if bodyGyro then bodyGyro:Destroy() end
-    end
+-- Apply FOV
+function applyFOV()
+	if workspace.CurrentCamera then
+		if features.Visuals.FOVChanger then
+			workspace.CurrentCamera.FieldOfView = fov
+		else
+			workspace.CurrentCamera.FieldOfView = 70
+		end
+	end
 end
 
--- Speed Hack
-local function applySpeed()
-    if features.Exploits.Speed then
-        player.Character.Humanoid.WalkSpeed = 50
-    else
-        player.Character.Humanoid.WalkSpeed = 16
-    end
+-- Anti-AFK Functionality
+function toggleAntiAFK(enabled)
+	if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		spawn(function()
+			while features.Exploits.AntiAFK do
+				task.wait(antiAFKInterval)
+				if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+					player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(5), 0)
+				end
+			end
+		end)
+	end
 end
 
-runService.RenderStepped:Connect(applySpeed)
-
--- ESP Feature
-local function setupESP()
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local highlight = Instance.new("Highlight")
-            highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Red for enemies
-            highlight.Parent = otherPlayer.Character
-        end
-    end
+-- No Clip Functionality
+function toggleNoClip(enabled)
+	if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local rootPart = player.Character.HumanoidRootPart
+		rootPart.CanCollide = false
+		local noClipConnection = runService.Stepped:Connect(function()
+			if features.Exploits.NoClip and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				for _, part in pairs(player.Character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			else
+				if noClipConnection then
+					noClipConnection:Disconnect()
+					noClipConnection = nil
+				end
+				if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+					player.Character.HumanoidRootPart.CanCollide = true
+					for _, part in pairs(player.Character:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.CanCollide = true
+						end
+					end
+				end
+			end
+		end)
+	end
 end
 
-if features.Visuals.ESP then
-    setupESP()
+-- Spinbot Functionality
+runService.RenderStepped:Connect(function()
+	if features.Exploits.Spinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = player.Character.HumanoidRootPart
+		hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
+	end
+end)
+
+-- Fly Functionality
+local bodyVelocity, bodyGyro, flyConnection
+
+function toggleFly(enabled)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChild("Humanoid")
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+	if not (character and humanoid and rootPart) then
+		print("Fly failed: Character, Humanoid, or RootPart not found")
+		return
+	end
+
+	if enabled then
+		humanoid.PlatformStand = true
+		print("Enabling Fly for character:", character.Name)
+
+		bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+		bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		bodyVelocity.Parent = rootPart
+
+		bodyGyro = Instance.new("BodyGyro")
+		bodyGyro.P = 3000
+		bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+		bodyGyro.CFrame = rootPart.CFrame
+		bodyGyro.Parent = rootPart
+
+		if not flyConnection then
+			flyConnection = runService.RenderStepped:Connect(function()
+				if features.Exploits.Fly and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+					local rootPart = player.Character.HumanoidRootPart
+					local camera = workspace.CurrentCamera
+					if camera then
+						local moveDirection = Vector3.new()
+
+						if userInputService:IsKeyDown(Enum.KeyCode.W) or userInputService:IsKeyDown(Enum.KeyCode.Up) then
+							moveDirection = moveDirection + camera.CFrame.LookVector
+						end
+						if userInputService:IsKeyDown(Enum.KeyCode.S) or userInputService:IsKeyDown(Enum.KeyCode.Down) then
+							moveDirection = moveDirection - camera.CFrame.LookVector
+						end
+						if userInputService:IsKeyDown(Enum.KeyCode.A) or userInputService:IsKeyDown(Enum.KeyCode.Left) then
+							moveDirection = moveDirection - camera.CFrame.RightVector
+						end
+						if userInputService:IsKeyDown(Enum.KeyCode.D) or userInputService:IsKeyDown(Enum.KeyCode.Right) then
+							moveDirection = moveDirection + camera.CFrame.RightVector
+						end
+						if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+							moveDirection = moveDirection + Vector3.new(0, 1, 0)
+						end
+						if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+							moveDirection = moveDirection - Vector3.new(0, 1, 0)
+						end
+
+						if moveDirection.Magnitude > 0 then
+							moveDirection = moveDirection.Unit
+						end
+
+						bodyVelocity.Velocity = moveDirection * flySpeed
+						bodyGyro.CFrame = camera.CFrame
+						print("Fly active, Velocity:", bodyVelocity.Velocity, "CFrame:", bodyGyro.CFrame)
+					end
+				else
+					if flyConnection then
+						flyConnection:Disconnect()
+						flyConnection = nil
+					end
+				end
+			end)
+		end
+	else
+		humanoid.PlatformStand = false
+		print("Disabling Fly for character:", character.Name)
+		if bodyVelocity then bodyVelocity:Destroy() end
+		if bodyGyro then bodyGyro:Destroy() end
+		if flyConnection then
+			flyConnection:Disconnect()
+			flyConnection = nil
+		end
+	end
 end
 
--- Tracers
-local function setupTracers()
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local tracer = Instance.new("Part")
-            tracer.Anchored = true
-            tracer.CanCollide = false
-            tracer.Transparency = 0.5
-            tracer.Size = Vector3.new(0.1, 0.1, 5)
-            tracer.Position = otherPlayer.Character.Head.Position
-            tracer.Parent = workspace
-        end
-    end
+-- Persist Fly on Death/Respawn
+player.CharacterAdded:Connect(function(character)
+	task.wait(0.1)
+	applySpeed()
+	if features.Exploits.Fly then
+		toggleFly(true)
+		print("Reapplied Fly on respawn for character:", character.Name)
+	end
+end)
+
+player.CharacterRemoving:Connect(function(character)
+	if features.Exploits.Fly and (bodyVelocity or bodyGyro or flyConnection) then
+		if bodyVelocity then bodyVelocity:Destroy() end
+		if bodyGyro then bodyGyro:Destroy() end
+		if flyConnection then
+			flyConnection:Disconnect()
+			flyConnection = nil
+		end
+		print("Cleaned up Fly on character removal for:", character.Name)
+	end
+end)
+
+-- Tracer Color Update (Added Missing Function)
+function updateTracerColor()
+	tracerColor = Color3.fromRGB(255, 255, 255)
 end
 
-if features.Visuals.Tracers then
-    setupTracers()
-end
-
--- Ensure all features are applied properly
-updateFeatures()
+-- Initial Setup
+updateGUI()
+applySpeed()
+applyFOV()
+updateFOVCircleColor()
+updateTracerColor()
