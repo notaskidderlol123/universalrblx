@@ -83,7 +83,7 @@ end
 -- Feature Toggles
 local features = {
 	Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = false, FOVCircle = false, SilentAim = false},
-	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false},
+	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false, HealthBar = false, Distance = false},
 	Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
 	Settings = {}
 }
@@ -97,7 +97,7 @@ local tracerColor = Color3.fromRGB(255, 255, 255)
 local fovCircleSize = 100
 local fovCircleColor = Color3.fromRGB(255, 255, 255)
 
-local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
+local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle, healthBarToggle, distanceToggle
 
 function createToggle(name, position, parent, tabName, callback, color)
 	local toggle = Instance.new("TextButton")
@@ -265,6 +265,18 @@ function updateGUI()
 			toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
 			if features.Visuals.ESP then setupESP() end
 			if features.Visuals.Tracers then setupTracers() end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		healthBarToggle = createToggle("HealthBar", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.HealthBar = not features.Visuals.HealthBar
+			toggle.Text = "Health Bar: " .. (features.Visuals.HealthBar and "ON" or "OFF")
+			if features.Visuals.ESP then setupESP() end
+		end, Color3.fromRGB(50, 150, 50))
+		yOffset += 50
+		distanceToggle = createToggle("Distance", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+			features.Visuals.Distance = not features.Visuals.Distance
+			toggle.Text = "Distance: " .. (features.Visuals.Distance and "ON" or "OFF")
+			if features.Visuals.ESP then setupESP() end
 		end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
 	elseif currentTab == "Exploits" then
@@ -480,8 +492,10 @@ function updateFOVCircleColor()
 	end
 end
 
--- ESP Functionality
+-- ESP Functionality with Health Bars and Distance
 local espHighlights = {}
+local espBillboards = {}
+
 runService.RenderStepped:Connect(function()
 	if features.Visuals.ESP then
 		setupESP()
@@ -491,12 +505,17 @@ runService.RenderStepped:Connect(function()
 end)
 
 function setupESP()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
 	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-		local shouldRender = false
+		local character = otherPlayer.Character
+		local humanoid = character and character:FindFirstChild("Humanoid")
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 		local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
-		local humanoid = otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid")
 		local isAlive = humanoid and humanoid.Health > 0
 
+		local shouldRender = false
 		if otherPlayer ~= player then
 			shouldRender = (not features.Visuals.TeamCheck or not isTeammate) and 
 				(not features.Visuals.DeadCheck or isAlive)
@@ -505,34 +524,99 @@ function setupESP()
 				(not features.Visuals.DeadCheck or isAlive)
 		end
 
-		if shouldRender and otherPlayer.Character then
-			local character = otherPlayer.Character
-			local rootPart = character:FindFirstChild("HumanoidRootPart")
-			if rootPart then
-				local highlight = espHighlights[otherPlayer]
-				local camera = workspace.CurrentCamera
-				if camera then
-					local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
-					if onScreen or (not onScreen and checkThroughWalls(rootPart.Position, player.Character and player.Character.HumanoidRootPart)) then
-						if not highlight then
-							highlight = Instance.new("Highlight")
-							highlight.Name = "ESPHighlight"
-							highlight.FillColor = isTeammate and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-							highlight.Parent = character
-							espHighlights[otherPlayer] = highlight
-						end
-					elseif highlight then
-						highlight:Destroy()
-						espHighlights[otherPlayer] = nil
+		if shouldRender and character and rootPart then
+			local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
+			local visible = onScreen or (not onScreen and checkThroughWalls(rootPart.Position, player.Character and player.Character.HumanoidRootPart))
+
+			-- Highlight ESP
+			local highlight = espHighlights[otherPlayer]
+			if visible then
+				if not highlight then
+					highlight = Instance.new("Highlight")
+					highlight.Name = "ESPHighlight"
+					highlight.FillColor = isTeammate and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+					highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+					highlight.Parent = character
+					espHighlights[otherPlayer] = highlight
+				end
+			else
+				if highlight then
+					highlight:Destroy()
+					espHighlights[otherPlayer] = nil
+				end
+			end
+
+			-- Billboard GUI for Health Bar and Distance
+			local billboard = espBillboards[otherPlayer]
+			if visible then
+				if not billboard then
+					billboard = Instance.new("BillboardGui")
+					billboard.Name = "ESPBilboard"
+					billboard.Adornee = rootPart
+					billboard.Size = UDim2.new(0, 100, 0, 50)
+					billboard.StudsOffset = Vector3.new(0, 3, 0)
+					billboard.AlwaysOnTop = true
+					billboard.Parent = gui
+
+					local nameLabel = Instance.new("TextLabel")
+					nameLabel.Size = UDim2.new(1, 0, 0, 20)
+					nameLabel.Position = UDim2.new(0, 0, 0, 0)
+					nameLabel.BackgroundTransparency = 1
+					nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+					nameLabel.TextStrokeTransparency = 0
+					nameLabel.Text = otherPlayer.Name
+					nameLabel.Parent = billboard
+
+					local healthBarFrame = Instance.new("Frame")
+					healthBarFrame.Size = UDim2.new(1, 0, 0, 10)
+					healthBarFrame.Position = UDim2.new(0, 0, 0, 20)
+					healthBarFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+					healthBarFrame.Parent = billboard
+
+					local healthBarFill = Instance.new("Frame")
+					healthBarFill.Size = UDim2.new(1, 0, 1, 0)
+					healthBarFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+					healthBarFill.Parent = healthBarFrame
+                    
+					local distanceLabel = Instance.new("TextLabel")
+					distanceLabel.Size = UDim2.new(1, 0, 0, 20)
+					distanceLabel.Position = UDim2.new(0, 0, 0, 30)
+					distanceLabel.BackgroundTransparency = 1
+					distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+					distanceLabel.TextStrokeTransparency = 0
+					distanceLabel.Text = "0 studs"
+					distanceLabel.Parent = billboard
+
+					espBillboards[otherPlayer] = billboard
+				end
+
+				-- Update Health Bar and Distance
+				if humanoid then
+					local healthBarFill = billboard:FindFirstChild("Frame"):FindFirstChild("Frame")
+					if features.Visuals.HealthBar and healthBarFill then
+						local healthPercent = humanoid.Health / humanoid.MaxHealth
+						healthBarFill.Size = UDim2.new(healthPercent, 0, 1, 0)
 					end
+					local distanceLabel = billboard:FindFirstChild("DistanceLabel")
+					if features.Visuals.Distance and distanceLabel and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+						local distance = (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+						distanceLabel.Text = math.floor(distance) .. " studs"
+					end
+				end
+			else
+				if billboard then
+					billboard:Destroy()
+					espBillboards[otherPlayer] = nil
 				end
 			end
 		else
-			local highlight = espHighlights[otherPlayer]
-			if highlight then
-				highlight:Destroy()
+			if espHighlights[otherPlayer] then
+				espHighlights[otherPlayer]:Destroy()
 				espHighlights[otherPlayer] = nil
+			end
+			if espBillboards[otherPlayer] then
+				espBillboards[otherPlayer]:Destroy()
+				espBillboards[otherPlayer] = nil
 			end
 		end
 	end
@@ -544,7 +628,13 @@ function cleanupESP()
 			highlight:Destroy()
 		end
 	end
+	for _, billboard in pairs(espBillboards) do
+		if billboard then
+			billboard:Destroy()
+		end
+	end
 	espHighlights = {}
+	espBillboards = {}
 end
 
 -- Tracers Functionality
@@ -590,7 +680,7 @@ function setupTracers()
 					local direction = (endPos - startPos).Unit
 					local distance = (endPos - startPos).Magnitude
 
-					tracer.Size = Vector3.new(0.1, 0.1, distance)
+					tracer.Size = Vector3.new(0.05, 0.05, distance) -- Thinner tracers
 					tracer.CFrame = CFrame.new(startPos + (direction * distance / 2), endPos)
 				else
 					if tracer then
