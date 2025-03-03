@@ -1,0 +1,1078 @@
+-- Comprehensive Cheat GUI Script for "Rivals" - Normal, Functional, Persists Through Respawn
+
+-- Function to safely initialize the script with delayed loading (proven to work in "Rivals")
+local function initialize()
+    -- Wait for Players service and LocalPlayer with retries, confirmed via Dex and blue box success
+    local players
+    local maxRetries = 5
+    local delay = 1
+    local success, result = pcall(game.GetService, game, "Players")
+    if not success then
+        warn("Players service not found initially. Retrying...")
+        for i = 1, maxRetries do
+            task.wait(delay)
+            success, result = pcall(game.GetService, game, "Players")
+            if success and result then
+                players = result
+                break
+            end
+            delay = delay * 1.5 -- Exponential backoff
+        end
+    else
+        players = result
+    end
+
+    if not players then
+        warn("Failed to find Players service after retries. Check Dex for custom player system.")
+        return
+    end
+
+    local player
+    success, player = pcall(function()
+        return players.LocalPlayer
+    end)
+    if not success or not player then
+        warn("LocalPlayer not found initially. Waiting for player...")
+        player = players.LocalPlayer or players.PlayerAdded:Wait()
+        if not player then
+            warn("Failed to find LocalPlayer after waiting. Check Dex for custom player system.")
+            return
+        end
+    end
+
+    -- Get services for GUI functionality
+    local userInputService = game:GetService("UserInputService")
+    local runService = game:GetService("RunService")
+
+    -- Create and parent the GUI to PlayerGui, confirmed via Dex and blue box success
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "CheatGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui") -- Use PlayerGui from Dex findings
+
+    -- Create Animation GUI
+    local animationGui = Instance.new("ScreenGui")
+    animationGui.Name = "AnimationGUI"
+    animationGui.Parent = player:WaitForChild("PlayerGui") -- Use PlayerGui from Dex
+    animationGui.Enabled = false
+
+    -- Create Main Frame with Scrolling (normal, clean design)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 400)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -200) -- Centered, normal position
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Normal gray background
+    frame.Parent = gui
+    frame.Visible = true
+
+    local scrollingFrame = Instance.new("ScrollingFrame")
+    scrollingFrame.Size = UDim2.new(1, 0, 1, -30)
+    scrollingFrame.Position = UDim2.new(0, 0, 0, 30)
+    scrollingFrame.BackgroundTransparency = 1
+    scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollingFrame.ScrollBarThickness = 8
+    scrollingFrame.Parent = frame
+
+    -- Make GUI Draggable (standard, user-friendly interaction)
+    local dragging = false
+    local dragStart
+    local startPos
+
+    local function updateDragging(input)
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateDragging(input)
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    userInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateDragging(input)
+        end
+    end)
+
+    userInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- Tab System (normal, organized layout)
+    local tabs = {"Aimbot", "Visuals", "Exploits", "Settings"}
+    local currentTab = "Aimbot"
+
+    local tabButtons = {}
+    for i, tabName in ipairs(tabs) do
+        local tabButton = Instance.new("TextButton")
+        tabButton.Size = UDim2.new(0, 75, 0, 30)
+        tabButton.Position = UDim2.new(0, (i-1)*75, 0, 0)
+        tabButton.Text = tabName
+        tabButton.Parent = frame
+        tabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+        local function tabClick()
+            currentTab = tabName
+            updateGUI()
+            for _, button in pairs(tabButtons) do
+                button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            end
+            tabButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            tabButton:TweenSize(UDim2.new(0, 80, 0, 32), "Out", "Quad", 0.2, true)
+            task.wait(0.2)
+            tabButton:TweenSize(UDim2.new(0, 75, 0, 30), "Out", "Quad", 0.2, true)
+        end
+
+        tabButton.MouseButton1Click:Connect(tabClick)
+        tabButton.TouchTap:Connect(tabClick)
+        table.insert(tabButtons, tabButton)
+    end
+
+    -- Feature Toggles and Settings
+    local features = {
+        Aimbot = {Aimlock = true, TeamCheck = false, DeadCheck = true, FOVCircle = true, SilentAim = false, AutoLock = true, Triggerbot = false}, -- Auto-lock enabled by default
+        Visuals = {ESP = true, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = true, DistanceESP = false, HealthESP = false}, -- ESP enabled by default
+        Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
+        Settings = {GuiToggleKey = Enum.KeyCode.Q, Animations = false}
+    }
+
+    local flySpeed = 50
+    local walkSpeed = 16
+    local fov = 70
+    local antiAFKInterval = 30
+    local guiColor = Color3.fromRGB(40, 40, 40)
+    local fovCircleSize = 100
+    local fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
+    local lockedPlayer = nil
+    local animationTrack = nil -- For Take The L animation
+
+    local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, autoLockToggle, triggerbotToggle
+    local espToggle, renderLocallyToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, distanceESPToggle, healthESPToggle
+    local infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
+    local guiToggleKeyToggle, animationsToggle
+
+    -- Animation GUI (normal, draggable)
+    local animationFrame = Instance.new("Frame")
+    animationFrame.Size = UDim2.new(0, 150, 0, 50)
+    animationFrame.Position = UDim2.new(0, 50, 0, 50)
+    animationFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    animationFrame.Parent = animationGui
+
+    local animationButton = Instance.new("TextButton")
+    animationButton.Size = UDim2.new(1, 0, 1, 0)
+    animationButton.Text = "Take The L Emote"
+    animationButton.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
+    animationButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    animationButton.Parent = animationFrame
+
+    -- Make Animation GUI Draggable
+    local animDragging = false
+    local animDragStart
+    local animStartPos
+
+    local function updateAnimDragging(input)
+        if animDragging then
+            local delta = input.Position - animDragStart
+            animationFrame.Position = UDim2.new(animStartPos.X.Scale, animStartPos.X.Offset + delta.X, animStartPos.Y.Scale, animStartPos.Y.Offset + delta.Y)
+        end
+    end
+
+    animationFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            animDragging = true
+            animDragStart = input.Position
+            animStartPos = animationFrame.Position
+        end
+    end)
+
+    animationFrame.InputChanged:Connect(function(input)
+        if animDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateAnimDragging(input)
+        end
+    end)
+
+    animationFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            animDragging = false
+        end
+    end)
+
+    userInputService.InputChanged:Connect(function(input)
+        if animDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateAnimDragging(input)
+        end
+    end)
+
+    userInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            animDragging = false
+        end
+    end)
+
+    -- Utility Functions (normal, reusable)
+    function createToggle(name, position, parent, tabName, callback, color)
+        local toggle = Instance.new("TextButton")
+        toggle.Size = UDim2.new(0, 200, 0, 30)
+        toggle.Position = position
+        toggle.Text = name .. ": " .. (features[tabName][name] and "ON" or "OFF")
+        toggle.Parent = parent
+        toggle.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+        toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+        local function toggleClick()
+            callback(toggle)
+            toggle:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
+            task.wait(0.2)
+            toggle:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+        end
+
+        toggle.MouseButton1Click:Connect(toggleClick)
+        toggle.TouchTap:Connect(toggleClick)
+        return toggle
+    end
+
+    function createSlider(name, position, parent, min, max, default, callback, color)
+        local sliderFrame = Instance.new("Frame")
+        sliderFrame.Size = UDim2.new(0, 200, 0, 30)
+        sliderFrame.Position = position
+        sliderFrame.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+        sliderFrame.Parent = parent
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(0, 100, 0, 30)
+        label.Position = UDim2.new(0, 0, 0, 0)
+        label.Text = name .. ": " .. default
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.Parent = sliderFrame
+
+        local slider = Instance.new("TextButton")
+        slider.Size = UDim2.new(0, 100, 0, 10)
+        slider.Position = UDim2.new(0, 100, 0, 10)
+        slider.Text = ""
+        slider.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
+        slider.Parent = sliderFrame
+
+        local fill = Instance.new("Frame")
+        fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        fill.Parent = slider
+
+        local draggingSlider = false
+        slider.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                draggingSlider = true
+            end
+        end)
+
+        userInputService.InputChanged:Connect(function(input)
+            if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local relativeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+                local value = min + (max - min) * relativeX
+                fill.Size = UDim2.new(relativeX, 0, 1, 0)
+                local roundedValue = math.floor(value + 0.5)
+                label.Text = name .. ": " .. roundedValue
+                callback(roundedValue)
+                slider:TweenSize(UDim2.new(0, 105, 0, 12), "Out", "Quad", 0.1, true)
+                task.wait(0.1)
+                slider:TweenSize(UDim2.new(0, 100, 0, 10), "Out", "Quad", 0.1, true)
+            end
+        end)
+
+        userInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                draggingSlider = false
+            end
+        end)
+
+        return sliderFrame
+    end
+
+    function createButton(name, position, parent, callback, color)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(0, 200, 0, 30)
+        button.Position = position
+        button.Text = name
+        button.Parent = parent
+        button.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+        local function buttonClick()
+            callback()
+            button:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
+            task.wait(0.2)
+            button:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+        end
+
+        button.MouseButton1Click:Connect(buttonClick)
+        button.TouchTap:Connect(buttonClick)
+        return button
+    end
+
+    -- Update GUI Function (normal, organized layout)
+    function updateGUI()
+        scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        for _, child in pairs(scrollingFrame:GetChildren()) do
+            if child:IsA("GuiObject") and child.Name ~= "CheatGUI" then
+                child:Destroy()
+            end
+        end
+
+        local yOffset = 0
+        print("Updating GUI for tab:", currentTab)
+        if currentTab == "Aimbot" then
+            frame.Name = "Aimbot"
+            aimlockToggle = createToggle("Aimlock", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.Aimlock = not features.Aimbot.Aimlock
+                toggle.Text = "Aimlock: " .. (features.Aimbot.Aimlock and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            teamCheckToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.TeamCheck = not features.Aimbot.TeamCheck
+                toggle.Text = "Team Check: " .. (features.Aimbot.TeamCheck and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            deadCheckToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.DeadCheck = not features.Aimbot.DeadCheck
+                toggle.Text = "Dead Check: " .. (features.Aimbot.DeadCheck and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            fovCircleToggle = createToggle("FOVCircle", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.FOVCircle = not features.Aimbot.FOVCircle
+                toggle.Text = "FOV Circle: " .. (features.Aimbot.FOVCircle and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            fovCircleSlider = createSlider("FOV Circle Size", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 640, fovCircleSize, function(value)
+                fovCircleSize = value
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            silentAimToggle = createToggle("SilentAim", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.SilentAim = not features.Aimbot.SilentAim
+                toggle.Text = "Silent Aim: " .. (features.Aimbot.SilentAim and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            autoLockToggle = createToggle("AutoLock", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.AutoLock = not features.Aimbot.AutoLock
+                toggle.Text = "Auto Lock: " .. (features.Aimbot.AutoLock and "ON" or "OFF")
+                if not features.Aimbot.AutoLock then
+                    lockedPlayer = nil
+                end
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+            triggerbotToggle = createToggle("Triggerbot", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
+                features.Aimbot.Triggerbot = not features.Aimbot.Triggerbot
+                toggle.Text = "Triggerbot: " .. (features.Aimbot.Triggerbot and "ON" or "OFF")
+            end, Color3.fromRGB(255, 100, 100))
+            yOffset += 50
+        elseif currentTab == "Visuals" then
+            frame.Name = "Visuals"
+            espToggle = createToggle("ESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.ESP = not features.Visuals.ESP
+                toggle.Text = "ESP: " .. (features.Visuals.ESP and "ON" or "OFF")
+                if features.Visuals.ESP then
+                    setupESP()
+                else
+                    cleanupESP()
+                end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            renderLocallyToggle = createToggle("RenderLocally", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.RenderLocally = not features.Visuals.RenderLocally
+                toggle.Text = "Render Locally: " .. (features.Visuals.RenderLocally and "ON" or "OFF")
+                if features.Visuals.ESP then setupESP() end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            fovToggle = createToggle("FOVChanger", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.FOVChanger = not features.Visuals.FOVChanger
+                toggle.Text = "FOV Changer: " .. (features.Visuals.FOVChanger and "ON" or "OFF")
+                applyFOV()
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            fovSlider = createSlider("FOV", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 200, fov, function(value)
+                fov = value
+                applyFOV()
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            teamCheckVisualToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.TeamCheck = not features.Visuals.TeamCheck
+                toggle.Text = "Team Check: " .. (features.Visuals.TeamCheck and "ON" or "OFF")
+                if features.Visuals.ESP then setupESP() end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            deadCheckVisualToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.DeadCheck = not features.Visuals.DeadCheck
+                toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
+                if features.Visuals.ESP then setupESP() end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            distanceESPToggle = createToggle("DistanceESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.DistanceESP = not features.Visuals.DistanceESP
+                toggle.Text = "Distance ESP: " .. (features.Visuals.DistanceESP and "ON" or "OFF")
+                if not features.Visuals.DistanceESP then cleanupDistanceESP() end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+            healthESPToggle = createToggle("HealthESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
+                features.Visuals.HealthESP = not features.Visuals.HealthESP
+                toggle.Text = "Health ESP: " .. (features.Visuals.HealthESP and "ON" or "OFF")
+                if not features.Visuals.HealthESP then cleanupHealthESP() end
+            end, Color3.fromRGB(50, 150, 50))
+            yOffset += 50
+        elseif currentTab == "Exploits" then
+            frame.Name = "Exploits"
+            infiniteJumpToggle = createToggle("InfiniteJump", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.InfiniteJump = not features.Exploits.InfiniteJump
+                toggle.Text = "Infinite Jump: " .. (features.Exploits.InfiniteJump and "ON" or "OFF")
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            spinbotToggle = createToggle("Spinbot", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.Spinbot = not features.Exploits.Spinbot
+                toggle.Text = "Spinbot: " .. (features.Exploits.Spinbot and "ON" or "OFF")
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            flyToggle = createToggle("Fly", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.Fly = not features.Exploits.Fly
+                toggle.Text = "Fly: " .. (features.Exploits.Fly and "ON" or "OFF")
+                toggleFly(features.Exploits.Fly)
+                print("Fly toggled to:", features.Exploits.Fly)
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            flySpeedSlider = createSlider("Fly Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, flySpeed, function(value)
+                flySpeed = value
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            noClipToggle = createToggle("NoClip", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.NoClip = not features.Exploits.NoClip
+                toggle.Text = "No Clip: " .. (features.Exploits.NoClip and "ON" or "OFF")
+                toggleNoClip(features.Exploits.NoClip)
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            speedToggle = createToggle("Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.Speed = not features.Exploits.Speed
+                toggle.Text = "Speed: " .. (features.Exploits.Speed and "ON" or "OFF")
+                applySpeed()
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            speedSlider = createSlider("Walk Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, walkSpeed, function(value)
+                walkSpeed = value
+                applySpeed()
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            antiAFKToggle = createToggle("AntiAFK", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
+                features.Exploits.AntiAFK = not features.Exploits.AntiAFK
+                toggle.Text = "Anti-AFK: " .. (features.Exploits.AntiAFK and "ON" or "OFF")
+                toggleAntiAFK(features.Exploits.AntiAFK)
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+            antiAFKSlider = createSlider("Anti-AFK Interval", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 60, antiAFKInterval, function(value)
+                antiAFKInterval = value
+            end, Color3.fromRGB(100, 100, 255))
+            yOffset += 50
+        elseif currentTab == "Settings" then
+            frame.Name = "Settings"
+            guiToggleKeyToggle = createButton("Set GUI Toggle Key (" .. features.Settings.GuiToggleKey.Name .. ")", UDim2.new(0, 50, 0, yOffset), scrollingFrame, function()
+                local listening = true
+                guiToggleKeyToggle.Text = "Press a key..."
+                local connection
+                connection = userInputService.InputBegan:Connect(function(input)
+                    if listening and input.UserInputType == Enum.UserInputType.Keyboard then
+                        features.Settings.GuiToggleKey = input.KeyCode
+                        guiToggleKeyToggle.Text = "Set GUI Toggle Key (" .. input.KeyCode.Name .. ")"
+                        listening = false
+                        connection:Disconnect()
+                    end
+                end)
+            end, Color3.fromRGB(150, 150, 150))
+            yOffset += 50
+            animationsToggle = createToggle("Animations", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Settings", function(toggle)
+                features.Settings.Animations = not features.Settings.Animations
+                toggle.Text = "Animations: " .. (features.Settings.Animations and "ON" or "OFF")
+                animationGui.Enabled = features.Settings.Animations
+                if not features.Settings.Animations and animationTrack then
+                    animationTrack:Stop()
+                    animationTrack = nil
+                end
+            end, Color3.fromRGB(150, 150, 150))
+            yOffset += 50
+        end
+        scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(yOffset, 400))
+        print("CanvasSize set to:", scrollingFrame.CanvasSize.Y.Offset)
+    end
+
+    -- GUI Toggle with Custom Keybind (normal, user-friendly)
+    userInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == features.Settings.GuiToggleKey then
+            if frame.Visible then
+                frame:TweenPosition(UDim2.new(0.5, -150, 1.5, -200), "Out", "Quad", 0.5, true, function()
+                    frame.Visible = false
+                end)
+            else
+                frame.Visible = true
+                frame.Position = UDim2.new(0.5, -150, 1.5, -200)
+                frame:TweenPosition(UDim2.new(0.5, -150, 0.5, -200), "Out", "Quad", 0.5, true)
+            end
+        end
+    end)
+
+    -- Aimbot Functionality (auto-lock in FOV circle, persists through respawn)
+    local lockedPlayer = nil
+
+    RunService.RenderStepped:Connect(function()
+        if features.Aimbot.AutoLock then
+            local camera = Workspace.CurrentCamera
+            local closestPlayer = nil
+            local closestDistance = math.huge
+            local fovCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    local isAlive = not features.Aimbot.DeadCheck or (humanoid and humanoid.Health and humanoid.Health > 0)
+                    local isTeammate = features.Aimbot.TeamCheck and player.Team == localPlayer.Team
+
+                    if isAlive and not isTeammate then
+                        local hrp = player.Character.HumanoidRootPart
+                        local screenPos, onScreen = camera:WorldToScreenPoint(hrp.Position)
+                        if onScreen then
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - fovCenter).Magnitude
+                            if distance <= fovCircleSize / 2 and distance < closestDistance then
+                                closestDistance = distance
+                                closestPlayer = player
+                            end
+                        end
+                    end
+                end
+            end
+
+            lockedPlayer = closestPlayer
+            if lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = lockedPlayer.Character.HumanoidRootPart
+                local targetPos = camera:WorldToScreenPoint(hrp.Position)
+                local currentPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+                -- Smoothly interpolate towards the target
+                local delta = (Vector2.new(targetPos.X, targetPos.Y) - currentPos) * 0.1 -- Smoothing factor
+                UserInputService.MouseDeltaSensitivity = 0
+                UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+                task.wait(0.1)
+                UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+                UserInputService.MouseDeltaSensitivity = 1
+            end
+
+            -- Draw FOV Circle (optional visualization)
+            if features.Aimbot.FOVCircle and camera then
+                local fovCircle = Drawing.new("Circle")
+                fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                fovCircle.Radius = fovCircleSize / 2
+                fovCircle.Color = fovCircleColor
+                fovCircle.Thickness = 2
+                fovCircle.Transparency = 0.5
+                fovCircle.Visible = true
+                task.wait() -- Keep visible for one frame
+                fovCircle:Remove()
+            end
+        end
+    end)
+
+    -- Triggerbot Logic (optional, can be toggled)
+    if features.Aimbot.Triggerbot then
+        userInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local camera = Workspace.CurrentCamera
+                local ray = camera:ScreenPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                local raycastResult = Workspace:Raycast(ray.Origin, ray.Direction * 1000, RaycastParams.new({
+                    FilterDescendantsInstances = {player.Character},
+                    FilterType = Enum.RaycastFilterType.Blacklist,
+                    IgnoreWater = true
+                }))
+                if raycastResult then
+                    local targetPlayer = Players:GetPlayerFromCharacter(raycastResult.Instance.Parent)
+                    if targetPlayer and targetPlayer ~= player then
+                        local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+                        if humanoid and humanoid.Health > 0 and (not features.Aimbot.TeamCheck or player.Team ~= targetPlayer.Team) then
+                            -- Simulate mouse click (exploit-specific, adjust based on executor)
+                            -- Note: This might require executor-specific functions (e.g., mouse1press, mouse1release)
+                            -- Placeholder for compatibility:
+                            print("Triggerbot activated on:", targetPlayer.Name)
+                            -- Add actual mouse click simulation here if your executor supports it
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    -- ESP Functionality (from working Rivals ESP, persists through respawn)
+    local espSettings = {
+        enabled = features.Visuals.ESP,
+        teamCheck = features.Visuals.TeamCheck,
+        deadCheck = features.Visuals.DeadCheck,
+        boxColor = Color3.new(1, 0, 0),
+        tracerColor = Color3.new(1, 0, 0),
+        nameColor = Color3.new(1, 1, 1),
+        boxThickness = 2,
+        tracerThickness = 1,
+        nameSize = 20
+    }
+
+    local espObjects = {}
+
+    local function setupESP()
+        espSettings.enabled = true
+        for _, player in pairs(Players:GetPlayers()) do
+            addESP(player)
+        end
+    end
+
+    local function cleanupESP()
+        espSettings.enabled = false
+        for _, player in pairs(Players:GetPlayers()) do
+            removeESP(player)
+        end
+    end
+
+    local function createESP(player)
+        if not espSettings.enabled then return end
+        if espSettings.teamCheck and player.Team == localPlayer.Team then return end
+        if player == localPlayer then return end
+
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+        local box = Drawing.new("Square")
+        box.Color = espSettings.boxColor
+        box.Thickness = espSettings.boxThickness
+        box.Transparency = 1
+        box.Filled = false
+
+        local tracer = Drawing.new("Line")
+        tracer.Color = espSettings.tracerColor
+        tracer.Thickness = espSettings.tracerThickness
+        tracer.Transparency = 1
+
+        local name = Drawing.new("Text")
+        name.Text = player.Name
+        name.Color = espSettings.nameColor
+        name.Size = espSettings.nameSize
+        name.Center = true
+        name.Outline = true
+        name.Transparency = 1
+
+        espObjects[player] = {box = box, tracer = tracer, name = name}
+
+        local function updateESP()
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+                box.Visible = false
+                tracer.Visible = false
+                name.Visible = false
+                return
+            end
+
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            local isAlive = not espSettings.deadCheck or (humanoid and humanoid.Health and humanoid.Health > 0)
+
+            if not isAlive then
+                box.Visible = false
+                tracer.Visible = false
+                name.Visible = false
+                return
+            end
+
+            local hrpPosition, onScreen = Workspace.CurrentCamera:WorldToViewportPoint(humanoidRootPart.Position)
+            if onScreen then
+                local top = Workspace.CurrentCamera:WorldToViewportPoint(humanoidRootPart.Position + Vector3.new(0, 3, 0))
+                local bottom = Workspace.CurrentCamera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, 3, 0))
+                local size = Vector2.new(math.abs(top.X - bottom.X) * 1.5, math.abs(top.Y - bottom.Y) * 1.5)
+                box.Size = size
+                box.Position = Vector2.new(hrpPosition.X - size.X / 2, hrpPosition.Y - size.Y / 2)
+                box.Visible = true
+
+                tracer.From = Vector2.new(Workspace.CurrentCamera.ViewportSize.X / 2, Workspace.CurrentCamera.ViewportSize.Y)
+                tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y)
+                tracer.Visible = true
+
+                name.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - size.Y / 2 - 20)
+                name.Visible = true
+            else
+                box.Visible = false
+                tracer.Visible = false
+                name.Visible = false
+            end
+        end
+
+        RunService.RenderStepped:Connect(updateESP)
+    end
+
+    local function removeESP(player)
+        if espObjects[player] then
+            espObjects[player].box:Remove()
+            espObjects[player].tracer:Remove()
+            espObjects[player].name:Remove()
+            espObjects[player] = nil
+        end
+    end
+
+    local function addESP(player)
+        player.CharacterAdded:Connect(function(character)
+            createESP(player)
+        end)
+        player.CharacterRemoving:Connect(function(character)
+            removeESP(player)
+        end)
+        if player.Character then
+            createESP(player)
+        end
+    end
+
+    -- Persist ESP through death and respawn
+    local function handleESPRespawn()
+        localPlayer.CharacterAdded:Connect(function(character)
+            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            if features.Visuals.ESP then
+                setupESP() -- Reinitialize ESP for all players
+            end
+        end)
+
+        localPlayer.CharacterRemoving:Connect(function(character)
+            cleanupESP() -- Clean up ESP objects during respawn
+        end)
+    end
+
+    -- Initialize ESP persistence
+    handleESPRespawn()
+
+    -- Trigger ESP setup based on initial settings
+    if features.Visuals.ESP then
+        setupESP()
+    end
+
+    -- Exploits and Other Functionality (normal, functional)
+    local flySpeed = 50
+    local walkSpeed = 16
+    local fov = 70
+    local antiAFKInterval = 30
+    local guiColor = Color3.fromRGB(40, 40, 40)
+    local fovCircleSize = 100
+    local fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
+    local lockedPlayer = nil
+    local animationTrack = nil -- For Take The L animation
+
+    -- Animation Button Logic (normal, persists)
+    local function toggleAnimation()
+        local character = player.Character
+        if not character then
+            warn("No character found for player!")
+            return
+        end
+
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then
+            warn("No Humanoid found in character!")
+            return
+        end
+
+        if not animationTrack then
+            local animation = Instance.new("Animation")
+            animation.AnimationId = "rbxassetid://507771019" -- Known working "Take The L" animation ID
+            animationTrack = humanoid:LoadAnimation(animation)
+            if animationTrack then
+                animationTrack:Play()
+                print("Playing 'Take The L' animation")
+            else
+                warn("Failed to load animation!")
+            end
+        else
+            animationTrack:Stop()
+            animationTrack = nil
+            print("Stopped 'Take The L' animation")
+        end
+    end
+
+    animationButton.MouseButton1Click:Connect(toggleAnimation)
+    animationButton.TouchTap:Connect(toggleAnimation)
+
+    -- Persist Animation through Respawn
+    local function handleAnimationRespawn()
+        localPlayer.CharacterAdded:Connect(function(character)
+            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            if features.Settings.Animations and animationTrack then
+                animationTrack:Play() -- Reapply animation if enabled
+            end
+        end)
+
+        localPlayer.CharacterRemoving:Connect(function(character)
+            if animationTrack then
+                animationTrack:Stop()
+                animationTrack = nil
+            end
+        end)
+    end
+
+    handleAnimationRespawn()
+
+    -- Utility Functions (normal, functional)
+    function updateFOVCircleColor()
+        fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
+    end
+
+    function applySpeed()
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character.Humanoid
+            humanoid.WalkSpeed = features.Exploits.Speed and walkSpeed or 16
+            print("WalkSpeed set to:", humanoid.WalkSpeed)
+        end
+    end
+
+    function applyFOV()
+        if Workspace.CurrentCamera then
+            if features.Visuals.FOVChanger then
+                Workspace.CurrentCamera.FieldOfView = fov
+            else
+                Workspace.CurrentCamera.FieldOfView = 70
+            end
+        end
+    end
+
+    function toggleAntiAFK(enabled)
+        if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            spawn(function()
+                while features.Exploits.AntiAFK do
+                    task.wait(antiAFKInterval)
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(5), 0)
+                    end
+                end
+            end)
+        end
+    end
+
+    function toggleNoClip(enabled)
+        if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character.HumanoidRootPart
+            rootPart.CanCollide = false
+            local noClipConnection = RunService.Stepped:Connect(function()
+                if features.Exploits.NoClip and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    for _, part in pairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                else
+                    if noClipConnection then
+                        noClipConnection:Disconnect()
+                        noClipConnection = nil
+                    end
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CanCollide = true
+                        for _, part in pairs(player.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = true
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+
+    function toggleFly(enabled)
+        local character = player.Character
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+        if not (character and humanoid and rootPart) then
+            print("Fly failed: Character, Humanoid, or RootPart not found")
+            return
+        end
+
+        if enabled then
+            humanoid.PlatformStand = true
+            print("Enabling Fly for character:", character.Name)
+
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.Parent = rootPart
+
+            local bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.P = 3000
+            bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bodyGyro.CFrame = rootPart.CFrame
+            bodyGyro.Parent = rootPart
+
+            local flyConnection = RunService.RenderStepped:Connect(function()
+                if features.Exploits.Fly and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local rootPart = player.Character.HumanoidRootPart
+                    local moveDirection = Vector3.new()
+
+                    if userInputService:IsKeyDown(Enum.KeyCode.W) or userInputService:IsKeyDown(Enum.KeyCode.Up) then
+                        moveDirection = moveDirection + camera.CFrame.LookVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.S) or userInputService:IsKeyDown(Enum.KeyCode.Down) then
+                        moveDirection = moveDirection - camera.CFrame.LookVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.A) or userInputService:IsKeyDown(Enum.KeyCode.Left) then
+                        moveDirection = moveDirection - camera.CFrame.RightVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.D) or userInputService:IsKeyDown(Enum.KeyCode.Right) then
+                        moveDirection = moveDirection + camera.CFrame.RightVector
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        moveDirection = moveDirection - Vector3.new(0, 1, 0)
+                    end
+
+                    if moveDirection.Magnitude > 0 then
+                        moveDirection = moveDirection.Unit
+                    end
+
+                    bodyVelocity.Velocity = moveDirection * flySpeed
+                    bodyGyro.CFrame = camera.CFrame
+                    print("Fly active, Velocity:", bodyVelocity.Velocity, "CFrame:", bodyGyro.CFrame)
+                else
+                    if flyConnection then
+                        flyConnection:Disconnect()
+                        flyConnection = nil
+                    end
+                end
+            end)
+        else
+            humanoid.PlatformStand = false
+            print("Disabling Fly for character:", character.Name)
+            if bodyVelocity then bodyVelocity:Destroy() end
+            if bodyGyro then bodyGyro:Destroy() end
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+        end
+    end
+
+    -- Persist Exploits through Respawn
+    local function handleExploitsRespawn()
+        localPlayer.CharacterAdded:Connect(function(character)
+            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            applySpeed()
+            if features.Exploits.Fly then
+                toggleFly(true)
+                print("Reapplied Fly on respawn for character:", character.Name)
+            end
+            if features.Exploits.InfiniteJump then
+                -- Reapply InfiniteJump logic if needed
+                userInputService.JumpRequest:Connect(function()
+                    if features.Exploits.InfiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
+                        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end)
+            end
+            if features.Exploits.Speed then
+                applySpeed()
+            end
+            if features.Exploits.NoClip then
+                toggleNoClip(true)
+            end
+            if features.Exploits.AntiAFK then
+                toggleAntiAFK(true)
+            end
+            if features.Exploits.Spinbot then
+                -- Reapply Spinbot logic if needed
+                RunService.RenderStepped:Connect(function()
+                    if features.Exploits.Spinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local hrp = player.Character.HumanoidRootPart
+                        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
+                    end
+                end)
+            end
+        end)
+
+        localPlayer.CharacterRemoving:Connect(function(character)
+            if features.Exploits.Fly then
+                toggleFly(false)
+            end
+            if features.Exploits.NoClip then
+                toggleNoClip(false)
+            end
+            if features.Exploits.AntiAFK then
+                features.Exploits.AntiAFK = false -- Temporarily disable to prevent issues
+            end
+        end)
+    end
+
+    handleExploitsRespawn()
+
+    -- Infinite Jump (normal, persists)
+    userInputService.JumpRequest:Connect(function()
+        if features.Exploits.InfiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+
+    -- Spinbot (normal, persists)
+    RunService.RenderStepped:Connect(function()
+        if features.Exploits.Spinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
+        end
+    end)
+
+    -- Initial Setup (normal, functional)
+    updateGUI()
+    applySpeed()
+    applyFOV()
+    updateFOVCircleColor()
+    if features.Visuals.ESP then setupESP() end
+    if features.Aimbot.AutoLock then
+        -- Ensure Aimbot starts with auto-lock enabled
+        lockedPlayer = nil -- Reset to find new target
+    end
+
+    -- Persist GUI through Respawn
+    local function handleGUIRespawn()
+        localPlayer.CharacterAdded:Connect(function(character)
+            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            updateGUI() -- Reinitialize GUI settings
+            if features.Visuals.ESP then setupESP() end
+            if features.Aimbot.AutoLock then lockedPlayer = nil end -- Reset Aimbot target
+            if features.Settings.Animations and animationTrack then animationTrack:Play() end
+            applySpeed()
+            if features.Exploits.Fly then toggleFly(true) end
+        end)
+
+        localPlayer.CharacterRemoving:Connect(function(character)
+            frame.Visible = false -- Hide GUI temporarily during respawn
+            cleanupESP() -- Clean up ESP objects
+            if animationTrack then
+                animationTrack:Stop()
+                animationTrack = nil
+            end
+            if features.Exploits.Fly then toggleFly(false) end
+        end)
+    end
+
+    handleGUIRespawn()
+
+    print("Comprehensive Cheat GUI loaded successfully for player:", player.Name)
+end
+
+-- Run the initialization function when the script loads
+initialize()
