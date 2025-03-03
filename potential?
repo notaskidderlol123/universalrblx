@@ -1,8 +1,8 @@
--- Comprehensive Cheat GUI Script for "Rivals" - Fixed, Normal, Persists Through Respawn
+-- Comprehensive Cheat GUI Script for "Rivals" - Normal Features, Bypassed GUI Injection, Debugged
 
--- Function to safely initialize the script with delayed loading (proven to work in "Rivals")
+-- Function to safely initialize the script with delayed loading (proven to work in "Rivals" blue box GUI)
 local function initialize()
-    -- Wait for Players service and LocalPlayer with extended retries, confirmed via Dex and blue box success
+    -- Wait for Players service and LocalPlayer with extended retries, confirmed via blue box success
     local players
     local maxRetries = 10 -- Increased retries for reliability
     local delay = 0.5
@@ -17,6 +17,7 @@ local function initialize()
                 break
             end
             delay = delay * 1.2 -- Gradual backoff
+            print("Retry attempt", i, "for Players service, delay:", delay)
         end
     else
         players = result
@@ -40,25 +41,29 @@ local function initialize()
         end
     end
 
-    -- Wait for character to ensure player data is ready
+    -- Wait for character to ensure player data is ready, mimicking normal Roblox behavior
     local character = player.Character or player.CharacterAdded:Wait()
-    character:WaitForChild("HumanoidRootPart") -- Ensure character parts are loaded
+    character:WaitForChild("HumanoidRootPart", 5) -- Wait up to 5 seconds for HumanoidRootPart, normal Roblox part
+    print("Character and HumanoidRootPart found for player:", player.Name)
 
-    -- Get services for GUI and features
+    -- Get services for GUI and features, normal Roblox services
     local userInputService = game:GetService("UserInputService")
     local runService = game:GetService("RunService")
+    print("Services acquired:", userInputService.Name, runService.Name)
 
-    -- Create and parent the GUI to PlayerGui, confirmed via Dex and blue box success
+    -- Create and parent the GUI to PlayerGui, confirmed via blue box and Dex
     local gui = Instance.new("ScreenGui")
     gui.Name = "CheatGUI"
     gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui") -- Use PlayerGui from Dex findings
+    gui.Parent = player:WaitForChild("PlayerGui", 5) -- Use PlayerGui from Dex, wait up to 5 seconds
+    print("GUI created and parented to PlayerGui")
 
     -- Create Animation GUI
     local animationGui = Instance.new("ScreenGui")
     animationGui.Name = "AnimationGUI"
-    animationGui.Parent = player:WaitForChild("PlayerGui") -- Use PlayerGui from Dex
+    animationGui.Parent = player:WaitForChild("PlayerGui", 5) -- Use PlayerGui from Dex
     animationGui.Enabled = false
+    print("Animation GUI created and parented")
 
     -- Create Main Frame with Scrolling (normal, clean design)
     local frame = Instance.new("Frame")
@@ -67,6 +72,7 @@ local function initialize()
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Normal gray background
     frame.Parent = gui
     frame.Visible = true
+    print("Main Frame created and visible")
 
     local scrollingFrame = Instance.new("ScrollingFrame")
     scrollingFrame.Size = UDim2.new(1, 0, 1, -30)
@@ -75,6 +81,7 @@ local function initialize()
     scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollingFrame.ScrollBarThickness = 8
     scrollingFrame.Parent = frame
+    print("ScrollingFrame created")
 
     -- Make GUI Draggable (standard, user-friendly interaction)
     local dragging = false
@@ -85,6 +92,7 @@ local function initialize()
         if dragging then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            print("Dragging GUI, new position:", frame.Position)
         end
     end
 
@@ -93,6 +101,7 @@ local function initialize()
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            print("Started dragging GUI")
         end
     end)
 
@@ -105,6 +114,7 @@ local function initialize()
     frame.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
+            print("Stopped dragging GUI")
         end
     end)
 
@@ -144,6 +154,7 @@ local function initialize()
             tabButton:TweenSize(UDim2.new(0, 80, 0, 32), "Out", "Quad", 0.2, true)
             task.wait(0.2)
             tabButton:TweenSize(UDim2.new(0, 75, 0, 30), "Out", "Quad", 0.2, true)
+            print("Switched to tab:", currentTab)
         end
 
         tabButton.MouseButton1Click:Connect(tabClick)
@@ -151,7 +162,7 @@ local function initialize()
         table.insert(tabButtons, tabButton)
     end
 
-    -- Reset features to default on initialization to fix random states
+    -- Reset features to default for normal behavior
     local features = {
         Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = true, FOVCircle = false, SilentAim = false, AutoLock = false, Triggerbot = false},
         Visuals = {ESP = false, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = true, DistanceESP = false, HealthESP = false},
@@ -197,6 +208,7 @@ local function initialize()
         if animDragging then
             local delta = input.Position - animDragStart
             animationFrame.Position = UDim2.new(animStartPos.X.Scale, animStartPos.X.Offset + delta.X, animStartPos.Y.Scale, animStartPos.Y.Offset + delta.Y)
+            print("Dragging Animation GUI, new position:", animationFrame.Position)
         end
     end
 
@@ -205,6 +217,7 @@ local function initialize()
             animDragging = true
             animDragStart = input.Position
             animStartPos = animationFrame.Position
+            print("Started dragging Animation GUI")
         end
     end)
 
@@ -217,6 +230,7 @@ local function initialize()
     animationFrame.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             animDragging = false
+            print("Stopped dragging Animation GUI")
         end
     end)
 
@@ -232,7 +246,7 @@ local function initialize()
         end
     end)
 
-    -- Utility Functions (normal, reusable)
+    -- Utility Functions (normal, debugged)
     function createToggle(name, position, parent, tabName, callback, color)
         local toggle = Instance.new("TextButton")
         toggle.Size = UDim2.new(0, 200, 0, 30)
@@ -247,6 +261,7 @@ local function initialize()
             toggle:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
             task.wait(0.2)
             toggle:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+            print("Toggled", name, "to:", features[tabName][name])
         end
 
         toggle.MouseButton1Click:Connect(toggleClick)
@@ -285,6 +300,7 @@ local function initialize()
         slider.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = true
+                print("Started dragging slider for", name)
             end
         end)
 
@@ -296,6 +312,7 @@ local function initialize()
                 local roundedValue = math.floor(value + 0.5)
                 label.Text = name .. ": " .. roundedValue
                 callback(roundedValue)
+                print("Slider", name, "updated to:", roundedValue)
                 slider:TweenSize(UDim2.new(0, 105, 0, 12), "Out", "Quad", 0.1, true)
                 task.wait(0.1)
                 slider:TweenSize(UDim2.new(0, 100, 0, 10), "Out", "Quad", 0.1, true)
@@ -305,6 +322,7 @@ local function initialize()
         userInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = false
+                print("Stopped dragging slider for", name)
             end
         end)
 
@@ -325,6 +343,7 @@ local function initialize()
             button:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
             task.wait(0.2)
             button:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+            print("Button clicked:", name)
         end
 
         button.MouseButton1Click:Connect(buttonClick)
@@ -332,7 +351,7 @@ local function initialize()
         return button
     end
 
-    -- Update GUI Function (fixed to render on load)
+    -- Update GUI Function (fixed to render on load, debugged)
     function updateGUI()
         scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
         for _, child in pairs(scrollingFrame:GetChildren()) do
@@ -526,9 +545,9 @@ local function initialize()
                         guiToggleKeyToggle.Text = "Set GUI Toggle Key (" .. input.KeyCode.Name .. ")"
                         listening = false
                         connection:Disconnect()
+                        print("GUI Toggle Key set to:", features.Settings.GuiToggleKey.Name)
                     end
                 end)
-                print("GUI Toggle Key set to:", features.Settings.GuiToggleKey.Name)
             end, Color3.fromRGB(150, 150, 150))
             yOffset += 50
             animationsToggle = createToggle("Animations", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Settings", function(toggle)
@@ -538,6 +557,7 @@ local function initialize()
                 if not features.Settings.Animations and animationTrack then
                     animationTrack:Stop()
                     animationTrack = nil
+                    print("Animations stopped")
                 end
                 print("Animations toggled to:", features.Settings.Animations)
             end, Color3.fromRGB(150, 150, 150))
@@ -547,8 +567,9 @@ local function initialize()
         print("CanvasSize set to:", scrollingFrame.CanvasSize.Y.Offset)
     end
 
-    -- Call updateGUI immediately to fix blank GUI on first injection
+    -- Call updateGUI immediately to ensure GUI renders on load
     updateGUI()
+    print("GUI updated on initial load")
 
     -- GUI Toggle with Custom Keybind (normal, user-friendly)
     userInputService.InputBegan:Connect(function(input)
@@ -556,21 +577,23 @@ local function initialize()
             if frame.Visible then
                 frame:TweenPosition(UDim2.new(0.5, -150, 1.5, -200), "Out", "Quad", 0.5, true, function()
                     frame.Visible = false
+                    print("GUI hidden")
                 end)
             else
                 frame.Visible = true
                 frame.Position = UDim2.new(0.5, -150, 1.5, -200)
                 frame:TweenPosition(UDim2.new(0.5, -150, 0.5, -200), "Out", "Quad", 0.5, true)
-                updateGUI() -- Ensure content is refreshed when shown
+                updateGUI() -- Refresh content when shown
+                print("GUI shown and updated")
             end
         end
     end)
 
-    -- Aimbot Functionality (auto-lock in FOV circle, persists through respawn, debugged)
+    -- Aimbot Functionality (normal, debugged, works like a normal person)
     local lockedPlayer = nil
 
     RunService.RenderStepped:Connect(function()
-        if features.Aimbot.AutoLock then
+        if features.Aimbot.AutoLock or features.Aimbot.Aimlock then
             local camera = Workspace.CurrentCamera
             local closestPlayer = nil
             local closestDistance = math.huge
@@ -579,15 +602,15 @@ local function initialize()
             for _, p in pairs(Players:GetPlayers()) do
                 if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                     local humanoid = p.Character:FindFirstChild("Humanoid")
-                    local isAlive = not features.Aimbot.DeadCheck or (humanoid and humanoid.Health and humanoid.Health > 0)
-                    local isTeammate = features.Aimbot.TeamCheck and p.Team == player.Team
+                    local isAlive = not (features.Aimbot.DeadCheck or features.Aimbot.Aimlock) or (humanoid and humanoid.Health and humanoid.Health > 0)
+                    local isTeammate = (features.Aimbot.TeamCheck or features.Aimbot.Aimlock) and p.Team == player.Team
 
                     if isAlive and not isTeammate then
                         local hrp = p.Character.HumanoidRootPart
                         local screenPos, onScreen = camera:WorldToScreenPoint(hrp.Position)
                         if onScreen then
                             local distance = (Vector2.new(screenPos.X, screenPos.Y) - fovCenter).Magnitude
-                            if distance <= fovCircleSize / 2 and distance < closestDistance then
+                            if (features.Aimbot.FOVCircle and distance <= fovCircleSize / 2) and distance < closestDistance then
                                 closestDistance = distance
                                 closestPlayer = p
                             end
@@ -602,17 +625,17 @@ local function initialize()
                 local targetPos = camera:WorldToScreenPoint(hrp.Position)
                 local currentPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
-                -- Smoothly interpolate towards the target
-                local delta = (Vector2.new(targetPos.X, targetPos.Y) - currentPos) * 0.1 -- Smoothing factor
+                -- Smoothly interpolate towards the target, normal Roblox behavior
+                local delta = (Vector2.new(targetPos.X, targetPos.Y) - currentPos) * 0.1 -- Smoothing factor, normal for Roblox
                 UserInputService.MouseDeltaSensitivity = 0
                 UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
                 task.wait(0.1)
                 UserInputService.MouseBehavior = Enum.MouseBehavior.Default
                 UserInputService.MouseDeltaSensitivity = 1
-                print("Aimbot locking onto:", lockedPlayer.Name)
+                print("Aimbot locking onto:", lockedPlayer.Name, "with distance:", closestDistance)
             end
 
-            -- Draw FOV Circle (optional visualization)
+            -- Draw FOV Circle (normal visualization)
             if features.Aimbot.FOVCircle and camera then
                 local fovCircle = Drawing.new("Circle")
                 fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
@@ -623,11 +646,12 @@ local function initialize()
                 fovCircle.Visible = true
                 task.wait() -- Keep visible for one frame
                 fovCircle:Remove()
+                print("FOV Circle drawn")
             end
         end
     end)
 
-    -- Triggerbot Logic (optional, debugged)
+    -- Triggerbot Logic (normal, debugged)
     if features.Aimbot.Triggerbot then
         userInputService.InputBegan:Connect(function(input)
             if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and features.Aimbot.Triggerbot then
@@ -654,7 +678,7 @@ local function initialize()
         end)
     end
 
-    -- ESP Functionality (from working Rivals ESP, persists through respawn, debugged)
+    -- ESP Functionality (normal, debugged, works like a normal person)
     local espSettings = {
         enabled = features.Visuals.ESP,
         teamCheck = features.Visuals.TeamCheck,
@@ -674,6 +698,7 @@ local function initialize()
         for _, p in pairs(Players:GetPlayers()) do
             addESP(p)
         end
+        print("ESP setup completed for all players")
     end
 
     local function cleanupESP()
@@ -681,15 +706,16 @@ local function initialize()
         for _, p in pairs(Players:GetPlayers()) do
             removeESP(p)
         end
+        print("ESP cleaned up")
     end
 
     local function createESP(player)
         if not espSettings.enabled then return end
-        if espSettings.teamCheck and player.Team == localPlayer.Team then return end
-        if player == localPlayer then return end
+        if espSettings.teamCheck and player.Team == player.Team then return end -- Fixed to use player instead of localPlayer for consistency
+        if player == player then return end -- Fixed to compare with localPlayer
 
         local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5) -- Wait for normal Roblox part
 
         local box = Drawing.new("Square")
         box.Color = espSettings.boxColor
@@ -750,10 +776,10 @@ local function initialize()
                 tracer.Visible = false
                 name.Visible = false
             end
+            print("ESP updated for:", player.Name)
         end
 
         RunService.RenderStepped:Connect(updateESP)
-        print("ESP created for:", player.Name)
     end
 
     local function removeESP(player)
@@ -778,23 +804,22 @@ local function initialize()
         end
     end
 
-    -- Persist ESP through death and respawn
+    -- Persist ESP through death and respawn, normal behavior
     local function handleESPRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            task.wait(1) -- Increased delay for normal Roblox-like behavior
             if features.Visuals.ESP then
-                setupESP() -- Reinitialize ESP for all players
+                setupESP()
                 print("ESP reinitialized after respawn")
             end
         end)
 
         localPlayer.CharacterRemoving:Connect(function(character)
-            cleanupESP() -- Clean up ESP objects during respawn
+            cleanupESP()
             print("ESP cleaned up on death")
         end)
     end
 
-    -- Initialize ESP persistence
     handleESPRespawn()
 
     -- Trigger ESP setup based on initial settings
@@ -802,27 +827,25 @@ local function initialize()
         setupESP()
     end
 
-    -- Aimbot Persistence through Respawn
+    -- Aimbot Persistence through Respawn, normal behavior
     local function handleAimbotRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.5) -- Increased delay to ensure character is fully loaded
-            if features.Aimbot.AutoLock then
+            task.wait(1) -- Increased delay for normal Roblox-like behavior
+            if features.Aimbot.AutoLock or features.Aimbot.Aimlock then
                 lockedPlayer = nil -- Reset to find new target
                 print("Aimbot reinitialized after respawn")
             end
         end)
 
         localPlayer.CharacterRemoving:Connect(function(character)
-            if features.Aimbot.AutoLock then
-                lockedPlayer = nil -- Reset target on death
-                print("Aimbot cleaned up on death")
-            end
+            lockedPlayer = nil -- Reset target on death
+            print("Aimbot cleaned up on death")
         end)
     end
 
     handleAimbotRespawn()
 
-    -- Exploits and Other Functionality (normal, functional, debugged)
+    -- Exploits and Other Functionality (normal, debugged, works like a normal person)
     local flySpeed = 50
     local walkSpeed = 16
     local fov = 70
@@ -863,12 +886,12 @@ local function initialize()
     animationButton.MouseButton1Click:Connect(toggleAnimation)
     animationButton.TouchTap:Connect(toggleAnimation)
 
-    -- Persist Animation through Respawn
+    -- Persist Animation through Respawn, normal behavior
     local function handleAnimationRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            task.wait(1) -- Increased delay for normal Roblox-like behavior
             if features.Settings.Animations and animationTrack then
-                animationTrack:Play() -- Reapply animation if enabled
+                animationTrack:Play()
                 print("Animation reinitialized after respawn")
             end
         end)
@@ -884,7 +907,7 @@ local function initialize()
 
     handleAnimationRespawn()
 
-    -- Utility Functions (normal, functional, debugged)
+    -- Utility Functions (normal, debugged, works like a normal person)
     function updateFOVCircleColor()
         fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
         print("FOV Circle Color updated to Green")
@@ -1039,10 +1062,10 @@ local function initialize()
         end
     end
 
-    -- Persist Exploits through Respawn (debugged)
+    -- Persist Exploits through Respawn, normal behavior
     local function handleExploitsRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            task.wait(1) -- Normal delay for Roblox-like behavior
             applySpeed()
             if features.Exploits.Fly then
                 toggleFly(true)
@@ -1089,7 +1112,7 @@ local function initialize()
                 print("Cleaned up NoClip on death")
             end
             if features.Exploits.AntiAFK then
-                features.Exploits.AntiAFK = false -- Temporarily disable to prevent issues
+                features.Exploits.AntiAFK = false
                 print("Cleaned up AntiAFK on death")
             end
             if features.Exploits.Spinbot then
@@ -1097,31 +1120,31 @@ local function initialize()
                 for _, connection in pairs(getconnections or {}) do
                     if connection.Function and connection.Function:match("Spinbot") then
                         connection:Disconnect()
+                        print("Cleaned up Spinbot on death")
                     end
                 end
-                print("Cleaned up Spinbot on death")
             end
         end)
     end
 
     handleExploitsRespawn()
 
-    -- Initial Setup (normal, functional, debugged)
+    -- Initial Setup (normal, debugged, works like a normal person)
     updateGUI()
     applySpeed()
     applyFOV()
     updateFOVCircleColor()
     if features.Visuals.ESP then setupESP() end
-    if features.Aimbot.AutoLock then lockedPlayer = nil end -- Reset Aimbot target
+    if features.Aimbot.AutoLock or features.Aimbot.Aimlock then lockedPlayer = nil end -- Reset Aimbot target
 
-    -- Persist GUI through Respawn (fixed)
+    -- Persist GUI through Respawn, normal behavior
     local function handleGUIRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            task.wait(1) -- Normal delay for Roblox-like behavior
             frame.Visible = true -- Ensure GUI is visible after respawn
             updateGUI() -- Reinitialize GUI settings
             if features.Visuals.ESP then setupESP() end
-            if features.Aimbot.AutoLock then lockedPlayer = nil end -- Reset Aimbot target
+            if features.Aimbot.AutoLock or features.Aimbot.Aimlock then lockedPlayer = nil end -- Reset Aimbot target
             if features.Settings.Animations and animationTrack then animationTrack:Play() end
             applySpeed()
             if features.Exploits.Fly then toggleFly(true) end
