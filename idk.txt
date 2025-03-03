@@ -1,4 +1,17 @@
+-- Check if running in Roblox environment
+if not game then
+    error("This script must run in a Roblox environment.")
+    return
+end
+
+-- Initialize services and variables
 local player = game.Players.LocalPlayer
+if not player then
+    warn("LocalPlayer not found, waiting for player...")
+    game.Players.PlayerAdded:Wait()
+    player = game.Players.LocalPlayer
+end
+
 local userInputService = game:GetService("UserInputService")
 local runService = game:GetService("RunService")
 local gui = Instance.new("ScreenGui")
