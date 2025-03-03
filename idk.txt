@@ -23,13 +23,9 @@ scrollingFrame.ScrollBarThickness = 8
 scrollingFrame.Parent = frame
 
 -- Make GUI Draggable (Mouse and Touch)
-local dragging, dragInput, dragStart, startPos
-
-local function startDragging(input)
-    dragging = true
-    dragStart = input.Position
-    startPos = frame.Position
-end
+local dragging = false
+local dragStart
+local startPos
 
 local function updateDragging(input)
     if dragging then
@@ -40,19 +36,26 @@ end
 
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        startDragging(input)
-        dragInput = input
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
     end
 end)
 
 frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateDragging(input)
+    end
+end)
+
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
     end
 end)
 
 userInputService.InputChanged:Connect(function(input)
-    if input == dragInput then
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         updateDragging(input)
     end
 end)
@@ -134,27 +137,40 @@ animationButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 animationButton.Parent = animationFrame
 
 -- Make Animation GUI Draggable
-local animDragging, animDragInput, animDragStart, animStartPos
+local animDragging = false
+local animDragStart
+local animStartPos
+
+local function updateAnimDragging(input)
+    if animDragging then
+        local delta = input.Position - animDragStart
+        animationFrame.Position = UDim2.new(animStartPos.X.Scale, animStartPos.X.Offset + delta.X, animStartPos.Y.Scale, animStartPos.Y.Offset + delta.Y)
+    end
+end
 
 animationFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         animDragging = true
         animDragStart = input.Position
         animStartPos = animationFrame.Position
-        animDragInput = input
     end
 end)
 
 animationFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        animDragInput = input
+    if animDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateAnimDragging(input)
+    end
+end)
+
+animationFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        animDragging = false
     end
 end)
 
 userInputService.InputChanged:Connect(function(input)
-    if animDragging and input == animDragInput then
-        local delta = input.Position - animDragStart
-        animationFrame.Position = UDim2.new(animStartPos.X.Scale, animStartPos.X.Offset + delta.X, animStartPos.Y.Scale, animStartPos.Y.Offset + delta.Y)
+    if animDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateAnimDragging(input)
     end
 end)
 
