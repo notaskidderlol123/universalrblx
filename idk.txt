@@ -83,7 +83,7 @@ end
 -- Feature Toggles
 local features = {
 	Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = false, FOVCircle = false, SilentAim = false},
-	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false},
+	Visuals = {ESP = false, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = false}, -- Tracers removed
 	Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
 	Settings = {}
 }
@@ -93,13 +93,10 @@ local walkSpeed = 16
 local fov = 70
 local antiAFKInterval = 30
 local guiColor = Color3.fromRGB(40, 40, 40)
-local tracerColor = Color3.fromRGB(255, 255, 255)
-local tracerThickness = 0.05  -- NEW: Thinner tracers
-local tracerOrigin = "Bottom"  -- NEW: Default tracer origin
 local fovCircleSize = 100
 local fovCircleColor = Color3.fromRGB(255, 255, 255)
 
-local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, tracerOriginToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
+local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle -- Tracer toggles removed
 
 function createToggle(name, position, parent, tabName, callback, color)
 	local toggle = Instance.new("TextButton")
@@ -174,60 +171,6 @@ function createSlider(name, position, parent, min, max, default, callback, color
 	return sliderFrame
 end
 
--- NEW: Dropdown creation function
-function createDropdown(name, position, parent, options, default, callback, color)
-    local dropdownFrame = Instance.new("Frame")
-    dropdownFrame.Size = UDim2.new(0, 200, 0, 30)
-    dropdownFrame.Position = position
-    dropdownFrame.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
-    dropdownFrame.Parent = parent
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, 100, 0, 30)
-    label.Text = name .. ": " .. default
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Parent = dropdownFrame
-
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 100, 0, 30)
-    button.Position = UDim2.new(0, 100, 0, 0)
-    button.Text = "▼"
-    button.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
-    button.Parent = dropdownFrame
-
-    local optionList = Instance.new("Frame")
-    optionList.Size = UDim2.new(0, 100, 0, #options * 30)
-    optionList.Position = UDim2.new(0, 100, 0, 30)
-    optionList.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
-    optionList.Visible = false
-    optionList.Parent = dropdownFrame
-
-    local optionsButtons = {}
-    for i, option in ipairs(options) do
-        local optionButton = Instance.new("TextButton")
-        optionButton.Size = UDim2.new(1, 0, 0, 30)
-        optionButton.Position = UDim2.new(0, 0, 0, (i-1) * 30)
-        optionButton.Text = option
-        optionButton.BackgroundColor3 = Color3.fromRGB(150, 200, 255)
-        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        optionButton.Parent = optionList
-        
-        optionButton.MouseButton1Click:Connect(function()
-            callback(option)
-            label.Text = name .. ": " .. option
-            optionList.Visible = false
-        end)
-        table.insert(optionsButtons, optionButton)
-    end
-
-    button.MouseButton1Click:Connect(function()
-        optionList.Visible = not optionList.Visible
-    end)
-
-    return dropdownFrame
-end
-
 function updateGUI()
 	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 	for _, child in pairs(scrollingFrame:GetChildren()) do
@@ -285,28 +228,7 @@ function updateGUI()
 			features.Visuals.RenderLocally = not features.Visuals.RenderLocally
 			toggle.Text = "Render Locally: " .. (features.Visuals.RenderLocally and "ON" or "OFF")
 			if features.Visuals.ESP then setupESP() end
-			if features.Visuals.Tracers then setupTracers() end
 		end, Color3.fromRGB(50, 150, 50))
-		yOffset += 50
-		tracersToggle = createToggle("Tracers", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
-			features.Visuals.Tracers = not features.Visuals.Tracers
-			toggle.Text = "Tracers: " .. (features.Visuals.Tracers and "ON" or "OFF")
-			if features.Visuals.Tracers then
-				setupTracers()
-			else
-				cleanupTracers()
-			end
-		end, Color3.fromRGB(50, 150, 50))
-		yOffset += 50
-		-- NEW: Tracer Origin Dropdown
-		tracerOriginToggle = createDropdown("Tracer Origin", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 
-			{"Top", "Center", "Middle", "Bottom"}, tracerOrigin, function(value)
-				tracerOrigin = value
-				if features.Visuals.Tracers then
-					cleanupTracers()
-					setupTracers()
-				end
-			end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
 		fovToggle = createToggle("FOVChanger", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
 			features.Visuals.FOVChanger = not features.Visuals.FOVChanger
@@ -323,14 +245,12 @@ function updateGUI()
 			features.Visuals.TeamCheck = not features.Visuals.TeamCheck
 			toggle.Text = "Team Check: " .. (features.Visuals.TeamCheck and "ON" or "OFF")
 			if features.Visuals.ESP then setupESP() end
-			if features.Visuals.Tracers then setupTracers() end
 		end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
 		deadCheckVisualToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
 			features.Visuals.DeadCheck = not features.Visuals.DeadCheck
 			toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
 			if features.Visuals.ESP then setupESP() end
-			if features.Visuals.Tracers then setupTracers() end
 		end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
 	elseif currentTab == "Exploits" then
@@ -613,93 +533,6 @@ function cleanupESP()
 	espHighlights = {}
 end
 
--- Tracers Functionality
-local tracerLines = {}
-runService.RenderStepped:Connect(function()
-	if features.Visuals.Tracers then
-		setupTracers()
-	else
-		cleanupTracers()
-	end
-end)
-
-function setupTracers()
-	local camera = workspace.CurrentCamera
-	if not camera then return end
-
-	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-			local root = otherPlayer.Character.HumanoidRootPart
-			local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-			local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
-			local isAlive = humanoid and humanoid.Health > 0
-
-			if (not features.Visuals.TeamCheck or not isTeammate) and 
-				(not features.Visuals.DeadCheck or isAlive) then
-				local tracer = tracerLines[otherPlayer]
-				local screenPos, onScreen = camera:WorldToScreenPoint(root.Position)
-
-				if onScreen or (not onScreen and checkThroughWalls(root.Position, player.Character and player.Character.HumanoidRootPart)) then
-					if not tracer then
-						tracer = Instance.new("Part")
-						tracer.Anchored = true
-						tracer.CanCollide = false
-						tracer.Transparency = 0.5
-						tracer.Color = tracerColor
-						tracer.Material = Enum.Material.Neon
-						tracer.Parent = workspace
-						tracerLines[otherPlayer] = tracer
-					end
-
-					-- NEW: Different start positions based on tracerOrigin
-					local startPos
-					if tracerOrigin == "Top" then
-						startPos = camera.CFrame.Position + Vector3.new(0, camera.ViewportSize.Y/100, 0)
-					elseif tracerOrigin == "Center" then
-						startPos = camera.CFrame.Position + (camera.CFrame.LookVector * 2)
-					elseif tracerOrigin == "Middle" then
-						startPos = camera.CFrame.Position + Vector3.new(0, 0, 0)
-					else -- Bottom
-						startPos = camera.CFrame.Position + Vector3.new(0, -camera.ViewportSize.Y/100, 0)
-					end
-
-					local endPos = root.Position
-					local direction = (endPos - startPos).Unit
-					local distance = (endPos - startPos).Magnitude
-
-					-- NEW: Using thinner tracer size
-					tracer.Size = Vector3.new(tracerThickness, tracerThickness, distance)
-					tracer.CFrame = CFrame.new(startPos + (direction * distance / 2), endPos)
-				else
-					if tracer then
-						tracer:Destroy()
-						tracerLines[otherPlayer] = nil
-					end
-				end
-			else
-				if tracerLines[otherPlayer] then
-					tracerLines[otherPlayer]:Destroy()
-					tracerLines[otherPlayer] = nil
-				end
-			end
-		else
-			if tracerLines[otherPlayer] then
-				tracerLines[otherPlayer]:Destroy()
-				tracerLines[otherPlayer] = nil
-			end
-		end
-	end
-end
-
-function cleanupTracers()
-	for _, tracer in pairs(tracerLines) do
-		if tracer then
-			tracer:Destroy()
-		end
-	end
-	tracerLines = {}
-end
-
 local function checkThroughWalls(targetPos, sourcePos)
 	if not sourcePos or not targetPos then return false end
 	local ray = Ray.new(sourcePos.Position, (targetPos - sourcePos.Position).Unit * (targetPos - sourcePos.Position).Magnitude)
@@ -895,14 +728,8 @@ player.CharacterRemoving:Connect(function(character)
 	end
 end)
 
--- Tracer Color Update
-function updateTracerColor()
-	tracerColor = Color3.fromRGB(255, 255, 255)
-end
-
 -- Initial Setup
 updateGUI()
 applySpeed()
 applyFOV()
 updateFOVCircleColor()
-updateTracerColor()
