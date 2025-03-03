@@ -80,12 +80,12 @@ for i, tabName in ipairs(tabs) do
     table.insert(tabButtons, tabButton)
 end
 
--- Feature Toggles
+-- Feature Toggles and Settings
 local features = {
     Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = false, FOVCircle = false, SilentAim = false, AutoLock = false, Triggerbot = false},
     Visuals = {ESP = false, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = false, DistanceESP = false, HealthESP = false},
     Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
-    Settings = {}
+    Settings = {GuiToggleKey = Enum.KeyCode.Q}
 }
 
 local flySpeed = 50
@@ -96,7 +96,7 @@ local guiColor = Color3.fromRGB(40, 40, 40)
 local fovCircleSize = 100
 local fovCircleColor = Color3.fromRGB(255, 255, 255)
 
-local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, autoLockToggle, triggerbotToggle, espToggle, renderLocallyToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, distanceESPToggle, healthESPToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
+local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, autoLockToggle, triggerbotToggle, espToggle, renderLocallyToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, distanceESPToggle, healthESPToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle, guiToggleKeyToggle, saveConfigButton, loadConfigButton
 
 function createToggle(name, position, parent, tabName, callback, color)
     local toggle = Instance.new("TextButton")
@@ -169,6 +169,24 @@ function createSlider(name, position, parent, min, max, default, callback, color
     end)
 
     return sliderFrame
+end
+
+function createButton(name, position, parent, callback, color)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 200, 0, 30)
+    button.Position = position
+    button.Text = name
+    button.Parent = parent
+    button.BackgroundColor3 = color or Color3.fromRGB(100, 150, 200)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    button.MouseButton1Click:Connect(function()
+        callback()
+        button:TweenSize(UDim2.new(0, 210, 0, 35), "Out", "Quad", 0.2, true)
+        task.wait(0.2)
+        button:TweenSize(UDim2.new(0, 200, 0, 30), "Out", "Quad", 0.2, true)
+    end)
+    return button
 end
 
 function updateGUI()
@@ -327,14 +345,63 @@ function updateGUI()
         yOffset += 50
     elseif currentTab == "Settings" then
         frame.Name = "Settings"
+        guiToggleKeyToggle = createButton("Set GUI Toggle Key (" .. features.Settings.GuiToggleKey.Name .. ")", UDim2.new(0, 50, 0, yOffset), scrollingFrame, function()
+            local listening = true
+            guiToggleKeyToggle.Text = "Press a key..."
+            local connection
+            connection = userInputService.InputBegan:Connect(function(input)
+                if listening and input.UserInputType == Enum.UserInputType.Keyboard then
+                    features.Settings.GuiToggleKey = input.KeyCode
+                    guiToggleKeyToggle.Text = "Set GUI Toggle Key (" .. input.KeyCode.Name .. ")"
+                    listening = false
+                    connection:Disconnect()
+                end
+            end)
+        end, Color3.fromRGB(150, 150, 150))
+        yOffset += 50
+        saveConfigButton = createButton("Save Config", UDim2.new(0, 50, 0, yOffset), scrollingFrame, function()
+            local config = {}
+            for tab, settings in pairs(features) do
+                config[tab] = {}
+                for key, value in pairs(settings) do
+                    if typeof(value) == "EnumItem" then -- Handle KeyCode
+                        config[tab][key] = value.Name
+                    else
+                        config[tab][key] = value
+                    end
+                end
+            end
+            writefile("CheatGUIConfig.json", game:GetService("HttpService"):JSONEncode(config))
+            print("Config saved!")
+        end, Color3.fromRGB(150, 150, 150))
+        yOffset += 50
+        loadConfigButton = createButton("Load Config", UDim2.new(0, 50, 0, yOffset), scrollingFrame, function()
+            if isfile("CheatGUIConfig.json") then
+                local config = game:GetService("HttpService"):JSONDecode(readfile("CheatGUIConfig.json"))
+                for tab, settings in pairs(config) do
+                    for key, value in pairs(settings) do
+                        if tab == "Settings" and key == "GuiToggleKey" then
+                            features[tab][key] = Enum.KeyCode[value]
+                        else
+                            features[tab][key] = value
+                        end
+                    end
+                end
+                updateGUI()
+                print("Config loaded!")
+            else
+                print("No config file found!")
+            end
+        end, Color3.fromRGB(150, 150, 150))
+        yOffset += 50
     end
     scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(yOffset, 400))
     print("CanvasSize set to:", scrollingFrame.CanvasSize.Y.Offset)
 end
 
--- GUI Toggle with Animations
+-- GUI Toggle with Custom Keybind
 userInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Q then
+    if input.KeyCode == features.Settings.GuiToggleKey then
         if frame.Visible then
             frame:TweenPosition(UDim2.new(0.5, -150, 1.5, -200), "Out", "Quad", 0.5, true, function()
                 frame.Visible = false
@@ -350,7 +417,7 @@ end)
 -- Aimbot Functionality
 userInputService.InputBegan:Connect(function(input)
     if features.Aimbot.Aimlock and input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local target = getNearestPlayer(true)
+        local target = getClosestToCenter(true)
         if target and target.Character and target.Character:FindFirstChild("Head") then
             local humanoid = target.Character:FindFirstChild("Humanoid")
             if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
@@ -376,7 +443,7 @@ userInputService.InputBegan:Connect(function(input)
     end
 
     if features.Aimbot.SilentAim and input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local target = getNearestPlayer(true)
+        local target = getClosestToCenter(true)
         if target and target.Character and target.Character:FindFirstChild("Head") then
             local humanoid = target.Character:FindFirstChild("Humanoid")
             if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
@@ -407,36 +474,36 @@ userInputService.InputBegan:Connect(function(input)
     end
 end)
 
-local function getNearestPlayer(ignoreWalls)
+local function getClosestToCenter(ignoreWalls)
     local closestPlayer = nil
     local shortestDistance = math.huge
-    local character = player.Character
+    local camera = workspace.CurrentCamera
+    local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-            if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-                if (not features.Aimbot.TeamCheck or (player.Team ~= otherPlayer.Team)) and 
-                    (not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
-                    local distance = (character.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if ignoreWalls then
-                        local ray = Ray.new(character.HumanoidRootPart.Position, (otherPlayer.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit * distance)
-                        local hit, pos = workspace:Raycast(ray.Origin, ray.Direction * distance, RaycastParams.new({
-                            FilterDescendantsInstances = {character},
-                            FilterType = Enum.RaycastFilterType.Blacklist,
-                            IgnoreWater = true
-                        }))
-                        if not hit or (hit and hit.Instance:IsDescendantOf(otherPlayer.Character)) then
-                            if distance < shortestDistance then
-                                shortestDistance = distance
-                                closestPlayer = otherPlayer
-                            end
-                        end
-                    else
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("Head") then
+            local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            if (not features.Aimbot.TeamCheck or (player.Team ~= otherPlayer.Team)) and 
+                (not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+                local screenPos, onScreen = camera:WorldToScreenPoint(otherPlayer.Character.Head.Position)
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                if ignoreWalls then
+                    local ray = Ray.new(camera.CFrame.Position, (otherPlayer.Character.Head.Position - camera.CFrame.Position).Unit * 1000)
+                    local hit, pos = workspace:Raycast(ray.Origin, ray.Direction * 1000, RaycastParams.new({
+                        FilterDescendantsInstances = {player.Character},
+                        FilterType = Enum.RaycastFilterType.Blacklist,
+                        IgnoreWater = true
+                    }))
+                    if not hit or (hit and hit.Instance:IsDescendantOf(otherPlayer.Character)) then
                         if distance < shortestDistance then
                             shortestDistance = distance
                             closestPlayer = otherPlayer
                         end
+                    end
+                else
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = otherPlayer
                     end
                 end
             end
@@ -481,7 +548,7 @@ runService.RenderStepped:Connect(function()
 
     -- Auto Lock Functionality
     if features.Aimbot.AutoLock then
-        local target = getNearestPlayer(true)
+        local target = getClosestToCenter(true)
         if target and target.Character and target.Character:FindFirstChild("Head") then
             local humanoid = target.Character:FindFirstChild("Humanoid")
             if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
@@ -505,10 +572,15 @@ runService.RenderStepped:Connect(function()
 
     -- Triggerbot Functionality
     if features.Aimbot.Triggerbot then
-        local mouse = player:GetMouse()
-        local target = mouse.Target
-        if target and target.Parent then
-            local targetPlayer = game.Players:GetPlayerFromCharacter(target.Parent)
+        local camera = workspace.CurrentCamera
+        local ray = camera:ScreenPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+        local raycastResult = workspace:Raycast(ray.Origin, ray.Direction * 1000, RaycastParams.new({
+            FilterDescendantsInstances = {player.Character},
+            FilterType = Enum.RaycastFilterType.Blacklist,
+            IgnoreWater = true
+        }))
+        if raycastResult then
+            local targetPlayer = game.Players:GetPlayerFromCharacter(raycastResult.Instance.Parent)
             if targetPlayer and targetPlayer ~= player then
                 local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
                 if humanoid and humanoid.Health > 0 and (not features.Aimbot.TeamCheck or player.Team ~= targetPlayer.Team) then
@@ -630,6 +702,12 @@ function setupDistanceESP()
                 local distance = (player.Character and player.Character:FindFirstChild("HumanoidRootPart") and 
                     (player.Character.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude) or 0
                 label.TextLabel.Text = math.floor(distance) .. " studs"
+            else
+                local label = distanceLabels[otherPlayer]
+                if label then
+                    label:Destroy()
+                    distanceLabels[otherPlayer] = nil
+                end
             end
         end
     end
@@ -673,6 +751,12 @@ function setupHealthESP()
                 end
                 local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
                 label.TextLabel.Text = healthPercent .. "%"
+            else
+                local label = healthLabels[otherPlayer]
+                if label then
+                    label:Destroy()
+                    healthLabels[otherPlayer] = nil
+                end
             end
         end
     end
