@@ -112,7 +112,7 @@ local antiAFKInterval = 30
 local guiColor = Color3.fromRGB(40, 40, 40)
 local fovCircleSize = 100
 local fovCircleColor = Color3.fromRGB(255, 255, 255)
-local lockedPlayer = nil -- For Auto Lock click-to-lock
+local lockedPlayer = nil
 local animationTrack = nil -- For Take The L animation
 
 local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, autoLockToggle, triggerbotToggle, espToggle, renderLocallyToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, distanceESPToggle, healthESPToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle, guiToggleKeyToggle, animationsToggle
@@ -622,7 +622,7 @@ runService.RenderStepped:Connect(function()
                 end
             end
         else
-            lockedPlayer = nil -- Clear lock if target is invalid
+            lockedPlayer = nil
         end
     end
 
@@ -649,19 +649,34 @@ runService.RenderStepped:Connect(function()
     end
 end)
 
--- Animation Button Logic
+-- Updated Animation Button Logic with Fix
 local function toggleAnimation()
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        local humanoid = player.Character.Humanoid
-        if not animationTrack then
-            local animation = Instance.new("Animation")
-            animation.AnimationId = "rbxassetid://85888020765150"
-            animationTrack = humanoid:LoadAnimation(animation)
+    local character = player.Character
+    if not character then
+        warn("No character found for player!")
+        return
+    end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then
+        warn("No Humanoid found in character!")
+        return
+    end
+
+    if not animationTrack then
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://507771019" -- Known working "Take The L" animation ID
+        animationTrack = humanoid:LoadAnimation(animation)
+        if animationTrack then
             animationTrack:Play()
+            print("Playing 'Take The L' animation")
         else
-            animationTrack:Stop()
-            animationTrack = nil
+            warn("Failed to load animation!")
         end
+    else
+        animationTrack:Stop()
+        animationTrack = nil
+        print("Stopped 'Take The L' animation")
     end
 end
 
