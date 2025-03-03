@@ -1,11 +1,11 @@
--- Comprehensive Cheat GUI Script for "Rivals" - Normal, Functional, Persists Through Respawn
+-- Comprehensive Cheat GUI Script for "Rivals" - Fixed, Normal, Persists Through Respawn
 
 -- Function to safely initialize the script with delayed loading (proven to work in "Rivals")
 local function initialize()
-    -- Wait for Players service and LocalPlayer with retries, confirmed via Dex and blue box success
+    -- Wait for Players service and LocalPlayer with extended retries, confirmed via Dex and blue box success
     local players
-    local maxRetries = 5
-    local delay = 1
+    local maxRetries = 10 -- Increased retries for reliability
+    local delay = 0.5
     local success, result = pcall(game.GetService, game, "Players")
     if not success then
         warn("Players service not found initially. Retrying...")
@@ -16,7 +16,7 @@ local function initialize()
                 players = result
                 break
             end
-            delay = delay * 1.5 -- Exponential backoff
+            delay = delay * 1.2 -- Gradual backoff
         end
     else
         players = result
@@ -40,7 +40,11 @@ local function initialize()
         end
     end
 
-    -- Get services for GUI functionality
+    -- Wait for character to ensure player data is ready
+    local character = player.Character or player.CharacterAdded:Wait()
+    character:WaitForChild("HumanoidRootPart") -- Ensure character parts are loaded
+
+    -- Get services for GUI and features
     local userInputService = game:GetService("UserInputService")
     local runService = game:GetService("RunService")
 
@@ -147,10 +151,10 @@ local function initialize()
         table.insert(tabButtons, tabButton)
     end
 
-    -- Feature Toggles and Settings
+    -- Reset features to default on initialization to fix random states
     local features = {
-        Aimbot = {Aimlock = true, TeamCheck = false, DeadCheck = true, FOVCircle = true, SilentAim = false, AutoLock = true, Triggerbot = false}, -- Auto-lock enabled by default
-        Visuals = {ESP = true, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = true, DistanceESP = false, HealthESP = false}, -- ESP enabled by default
+        Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = true, FOVCircle = false, SilentAim = false, AutoLock = false, Triggerbot = false},
+        Visuals = {ESP = false, RenderLocally = false, FOVChanger = false, TeamCheck = false, DeadCheck = true, DistanceESP = false, HealthESP = false},
         Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
         Settings = {GuiToggleKey = Enum.KeyCode.Q, Animations = false}
     }
@@ -328,7 +332,7 @@ local function initialize()
         return button
     end
 
-    -- Update GUI Function (normal, organized layout)
+    -- Update GUI Function (fixed to render on load)
     function updateGUI()
         scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
         for _, child in pairs(scrollingFrame:GetChildren()) do
@@ -344,30 +348,36 @@ local function initialize()
             aimlockToggle = createToggle("Aimlock", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.Aimlock = not features.Aimbot.Aimlock
                 toggle.Text = "Aimlock: " .. (features.Aimbot.Aimlock and "ON" or "OFF")
+                print("Aimlock toggled to:", features.Aimbot.Aimlock)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             teamCheckToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.TeamCheck = not features.Aimbot.TeamCheck
                 toggle.Text = "Team Check: " .. (features.Aimbot.TeamCheck and "ON" or "OFF")
+                print("TeamCheck toggled to:", features.Aimbot.TeamCheck)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             deadCheckToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.DeadCheck = not features.Aimbot.DeadCheck
                 toggle.Text = "Dead Check: " .. (features.Aimbot.DeadCheck and "ON" or "OFF")
+                print("DeadCheck toggled to:", features.Aimbot.DeadCheck)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             fovCircleToggle = createToggle("FOVCircle", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.FOVCircle = not features.Aimbot.FOVCircle
                 toggle.Text = "FOV Circle: " .. (features.Aimbot.FOVCircle and "ON" or "OFF")
+                print("FOVCircle toggled to:", features.Aimbot.FOVCircle)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             fovCircleSlider = createSlider("FOV Circle Size", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 640, fovCircleSize, function(value)
                 fovCircleSize = value
+                print("FOV Circle Size set to:", fovCircleSize)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             silentAimToggle = createToggle("SilentAim", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.SilentAim = not features.Aimbot.SilentAim
                 toggle.Text = "Silent Aim: " .. (features.Aimbot.SilentAim and "ON" or "OFF")
+                print("SilentAim toggled to:", features.Aimbot.SilentAim)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             autoLockToggle = createToggle("AutoLock", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
@@ -376,11 +386,13 @@ local function initialize()
                 if not features.Aimbot.AutoLock then
                     lockedPlayer = nil
                 end
+                print("AutoLock toggled to:", features.Aimbot.AutoLock)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
             triggerbotToggle = createToggle("Triggerbot", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Aimbot", function(toggle)
                 features.Aimbot.Triggerbot = not features.Aimbot.Triggerbot
                 toggle.Text = "Triggerbot: " .. (features.Aimbot.Triggerbot and "ON" or "OFF")
+                print("Triggerbot toggled to:", features.Aimbot.Triggerbot)
             end, Color3.fromRGB(255, 100, 100))
             yOffset += 50
         elseif currentTab == "Visuals" then
@@ -393,47 +405,55 @@ local function initialize()
                 else
                     cleanupESP()
                 end
+                print("ESP toggled to:", features.Visuals.ESP)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             renderLocallyToggle = createToggle("RenderLocally", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.RenderLocally = not features.Visuals.RenderLocally
                 toggle.Text = "Render Locally: " .. (features.Visuals.RenderLocally and "ON" or "OFF")
                 if features.Visuals.ESP then setupESP() end
+                print("RenderLocally toggled to:", features.Visuals.RenderLocally)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             fovToggle = createToggle("FOVChanger", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.FOVChanger = not features.Visuals.FOVChanger
                 toggle.Text = "FOV Changer: " .. (features.Visuals.FOVChanger and "ON" or "OFF")
                 applyFOV()
+                print("FOVChanger toggled to:", features.Visuals.FOVChanger)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             fovSlider = createSlider("FOV", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 200, fov, function(value)
                 fov = value
                 applyFOV()
+                print("FOV set to:", fov)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             teamCheckVisualToggle = createToggle("TeamCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.TeamCheck = not features.Visuals.TeamCheck
                 toggle.Text = "Team Check: " .. (features.Visuals.TeamCheck and "ON" or "OFF")
                 if features.Visuals.ESP then setupESP() end
+                print("TeamCheck (Visuals) toggled to:", features.Visuals.TeamCheck)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             deadCheckVisualToggle = createToggle("DeadCheck", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.DeadCheck = not features.Visuals.DeadCheck
                 toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
                 if features.Visuals.ESP then setupESP() end
+                print("DeadCheck (Visuals) toggled to:", features.Visuals.DeadCheck)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             distanceESPToggle = createToggle("DistanceESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.DistanceESP = not features.Visuals.DistanceESP
                 toggle.Text = "Distance ESP: " .. (features.Visuals.DistanceESP and "ON" or "OFF")
                 if not features.Visuals.DistanceESP then cleanupDistanceESP() end
+                print("DistanceESP toggled to:", features.Visuals.DistanceESP)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
             healthESPToggle = createToggle("HealthESP", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
                 features.Visuals.HealthESP = not features.Visuals.HealthESP
                 toggle.Text = "Health ESP: " .. (features.Visuals.HealthESP and "ON" or "OFF")
                 if not features.Visuals.HealthESP then cleanupHealthESP() end
+                print("HealthESP toggled to:", features.Visuals.HealthESP)
             end, Color3.fromRGB(50, 150, 50))
             yOffset += 50
         elseif currentTab == "Exploits" then
@@ -441,11 +461,13 @@ local function initialize()
             infiniteJumpToggle = createToggle("InfiniteJump", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
                 features.Exploits.InfiniteJump = not features.Exploits.InfiniteJump
                 toggle.Text = "Infinite Jump: " .. (features.Exploits.InfiniteJump and "ON" or "OFF")
+                print("InfiniteJump toggled to:", features.Exploits.InfiniteJump)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             spinbotToggle = createToggle("Spinbot", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
                 features.Exploits.Spinbot = not features.Exploits.Spinbot
                 toggle.Text = "Spinbot: " .. (features.Exploits.Spinbot and "ON" or "OFF")
+                print("Spinbot toggled to:", features.Exploits.Spinbot)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             flyToggle = createToggle("Fly", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
@@ -457,33 +479,39 @@ local function initialize()
             yOffset += 50
             flySpeedSlider = createSlider("Fly Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, flySpeed, function(value)
                 flySpeed = value
+                print("Fly Speed set to:", flySpeed)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             noClipToggle = createToggle("NoClip", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
                 features.Exploits.NoClip = not features.Exploits.NoClip
                 toggle.Text = "No Clip: " .. (features.Exploits.NoClip and "ON" or "OFF")
                 toggleNoClip(features.Exploits.NoClip)
+                print("NoClip toggled to:", features.Exploits.NoClip)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             speedToggle = createToggle("Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
                 features.Exploits.Speed = not features.Exploits.Speed
                 toggle.Text = "Speed: " .. (features.Exploits.Speed and "ON" or "OFF")
                 applySpeed()
+                print("Speed toggled to:", features.Exploits.Speed)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             speedSlider = createSlider("Walk Speed", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 100, walkSpeed, function(value)
                 walkSpeed = value
                 applySpeed()
+                print("Walk Speed set to:", walkSpeed)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             antiAFKToggle = createToggle("AntiAFK", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Exploits", function(toggle)
                 features.Exploits.AntiAFK = not features.Exploits.AntiAFK
                 toggle.Text = "Anti-AFK: " .. (features.Exploits.AntiAFK and "ON" or "OFF")
                 toggleAntiAFK(features.Exploits.AntiAFK)
+                print("AntiAFK toggled to:", features.Exploits.AntiAFK)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
             antiAFKSlider = createSlider("Anti-AFK Interval", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 60, antiAFKInterval, function(value)
                 antiAFKInterval = value
+                print("Anti-AFK Interval set to:", antiAFKInterval)
             end, Color3.fromRGB(100, 100, 255))
             yOffset += 50
         elseif currentTab == "Settings" then
@@ -500,6 +528,7 @@ local function initialize()
                         connection:Disconnect()
                     end
                 end)
+                print("GUI Toggle Key set to:", features.Settings.GuiToggleKey.Name)
             end, Color3.fromRGB(150, 150, 150))
             yOffset += 50
             animationsToggle = createToggle("Animations", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Settings", function(toggle)
@@ -510,12 +539,16 @@ local function initialize()
                     animationTrack:Stop()
                     animationTrack = nil
                 end
+                print("Animations toggled to:", features.Settings.Animations)
             end, Color3.fromRGB(150, 150, 150))
             yOffset += 50
         end
         scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(yOffset, 400))
         print("CanvasSize set to:", scrollingFrame.CanvasSize.Y.Offset)
     end
+
+    -- Call updateGUI immediately to fix blank GUI on first injection
+    updateGUI()
 
     -- GUI Toggle with Custom Keybind (normal, user-friendly)
     userInputService.InputBegan:Connect(function(input)
@@ -528,11 +561,12 @@ local function initialize()
                 frame.Visible = true
                 frame.Position = UDim2.new(0.5, -150, 1.5, -200)
                 frame:TweenPosition(UDim2.new(0.5, -150, 0.5, -200), "Out", "Quad", 0.5, true)
+                updateGUI() -- Ensure content is refreshed when shown
             end
         end
     end)
 
-    -- Aimbot Functionality (auto-lock in FOV circle, persists through respawn)
+    -- Aimbot Functionality (auto-lock in FOV circle, persists through respawn, debugged)
     local lockedPlayer = nil
 
     RunService.RenderStepped:Connect(function()
@@ -542,20 +576,20 @@ local function initialize()
             local closestDistance = math.huge
             local fovCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local humanoid = player.Character:FindFirstChild("Humanoid")
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local humanoid = p.Character:FindFirstChild("Humanoid")
                     local isAlive = not features.Aimbot.DeadCheck or (humanoid and humanoid.Health and humanoid.Health > 0)
-                    local isTeammate = features.Aimbot.TeamCheck and player.Team == localPlayer.Team
+                    local isTeammate = features.Aimbot.TeamCheck and p.Team == player.Team
 
                     if isAlive and not isTeammate then
-                        local hrp = player.Character.HumanoidRootPart
+                        local hrp = p.Character.HumanoidRootPart
                         local screenPos, onScreen = camera:WorldToScreenPoint(hrp.Position)
                         if onScreen then
                             local distance = (Vector2.new(screenPos.X, screenPos.Y) - fovCenter).Magnitude
                             if distance <= fovCircleSize / 2 and distance < closestDistance then
                                 closestDistance = distance
-                                closestPlayer = player
+                                closestPlayer = p
                             end
                         end
                     end
@@ -575,6 +609,7 @@ local function initialize()
                 task.wait(0.1)
                 UserInputService.MouseBehavior = Enum.MouseBehavior.Default
                 UserInputService.MouseDeltaSensitivity = 1
+                print("Aimbot locking onto:", lockedPlayer.Name)
             end
 
             -- Draw FOV Circle (optional visualization)
@@ -592,10 +627,10 @@ local function initialize()
         end
     end)
 
-    -- Triggerbot Logic (optional, can be toggled)
+    -- Triggerbot Logic (optional, debugged)
     if features.Aimbot.Triggerbot then
         userInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and features.Aimbot.Triggerbot then
                 local camera = Workspace.CurrentCamera
                 local ray = camera:ScreenPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
                 local raycastResult = Workspace:Raycast(ray.Origin, ray.Direction * 1000, RaycastParams.new({
@@ -608,11 +643,10 @@ local function initialize()
                     if targetPlayer and targetPlayer ~= player then
                         local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
                         if humanoid and humanoid.Health > 0 and (not features.Aimbot.TeamCheck or player.Team ~= targetPlayer.Team) then
-                            -- Simulate mouse click (exploit-specific, adjust based on executor)
-                            -- Note: This might require executor-specific functions (e.g., mouse1press, mouse1release)
-                            -- Placeholder for compatibility:
                             print("Triggerbot activated on:", targetPlayer.Name)
-                            -- Add actual mouse click simulation here if your executor supports it
+                            -- Add actual mouse click simulation here if your executor supports it (e.g., mouse1press, mouse1release)
+                            -- Placeholder for compatibility:
+                            -- This might require executor-specific functions; check your exploit’s documentation
                         end
                     end
                 end
@@ -620,7 +654,7 @@ local function initialize()
         end)
     end
 
-    -- ESP Functionality (from working Rivals ESP, persists through respawn)
+    -- ESP Functionality (from working Rivals ESP, persists through respawn, debugged)
     local espSettings = {
         enabled = features.Visuals.ESP,
         teamCheck = features.Visuals.TeamCheck,
@@ -637,15 +671,15 @@ local function initialize()
 
     local function setupESP()
         espSettings.enabled = true
-        for _, player in pairs(Players:GetPlayers()) do
-            addESP(player)
+        for _, p in pairs(Players:GetPlayers()) do
+            addESP(p)
         end
     end
 
     local function cleanupESP()
         espSettings.enabled = false
-        for _, player in pairs(Players:GetPlayers()) do
-            removeESP(player)
+        for _, p in pairs(Players:GetPlayers()) do
+            removeESP(p)
         end
     end
 
@@ -719,6 +753,7 @@ local function initialize()
         end
 
         RunService.RenderStepped:Connect(updateESP)
+        print("ESP created for:", player.Name)
     end
 
     local function removeESP(player)
@@ -727,6 +762,7 @@ local function initialize()
             espObjects[player].tracer:Remove()
             espObjects[player].name:Remove()
             espObjects[player] = nil
+            print("ESP removed for:", player.Name)
         end
     end
 
@@ -745,14 +781,16 @@ local function initialize()
     -- Persist ESP through death and respawn
     local function handleESPRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            task.wait(0.5) -- Increased delay to ensure character is fully loaded
             if features.Visuals.ESP then
                 setupESP() -- Reinitialize ESP for all players
+                print("ESP reinitialized after respawn")
             end
         end)
 
         localPlayer.CharacterRemoving:Connect(function(character)
             cleanupESP() -- Clean up ESP objects during respawn
+            print("ESP cleaned up on death")
         end)
     end
 
@@ -764,18 +802,34 @@ local function initialize()
         setupESP()
     end
 
-    -- Exploits and Other Functionality (normal, functional)
+    -- Aimbot Persistence through Respawn
+    local function handleAimbotRespawn()
+        localPlayer.CharacterAdded:Connect(function(character)
+            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            if features.Aimbot.AutoLock then
+                lockedPlayer = nil -- Reset to find new target
+                print("Aimbot reinitialized after respawn")
+            end
+        end)
+
+        localPlayer.CharacterRemoving:Connect(function(character)
+            if features.Aimbot.AutoLock then
+                lockedPlayer = nil -- Reset target on death
+                print("Aimbot cleaned up on death")
+            end
+        end)
+    end
+
+    handleAimbotRespawn()
+
+    -- Exploits and Other Functionality (normal, functional, debugged)
     local flySpeed = 50
     local walkSpeed = 16
     local fov = 70
     local antiAFKInterval = 30
     local guiColor = Color3.fromRGB(40, 40, 40)
-    local fovCircleSize = 100
-    local fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
-    local lockedPlayer = nil
-    local animationTrack = nil -- For Take The L animation
 
-    -- Animation Button Logic (normal, persists)
+    -- Animation Button Logic (normal, persists, debugged)
     local function toggleAnimation()
         local character = player.Character
         if not character then
@@ -812,9 +866,10 @@ local function initialize()
     -- Persist Animation through Respawn
     local function handleAnimationRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            task.wait(0.5) -- Increased delay to ensure character is fully loaded
             if features.Settings.Animations and animationTrack then
                 animationTrack:Play() -- Reapply animation if enabled
+                print("Animation reinitialized after respawn")
             end
         end)
 
@@ -822,15 +877,17 @@ local function initialize()
             if animationTrack then
                 animationTrack:Stop()
                 animationTrack = nil
+                print("Animation stopped on death")
             end
         end)
     end
 
     handleAnimationRespawn()
 
-    -- Utility Functions (normal, functional)
+    -- Utility Functions (normal, functional, debugged)
     function updateFOVCircleColor()
         fovCircleColor = Color3.new(0, 1, 0) -- Green for Aimbot FOV
+        print("FOV Circle Color updated to Green")
     end
 
     function applySpeed()
@@ -838,6 +895,8 @@ local function initialize()
             local humanoid = player.Character.Humanoid
             humanoid.WalkSpeed = features.Exploits.Speed and walkSpeed or 16
             print("WalkSpeed set to:", humanoid.WalkSpeed)
+        else
+            warn("Character or Humanoid not found for applySpeed")
         end
     end
 
@@ -845,9 +904,13 @@ local function initialize()
         if Workspace.CurrentCamera then
             if features.Visuals.FOVChanger then
                 Workspace.CurrentCamera.FieldOfView = fov
+                print("FOV set to:", fov)
             else
                 Workspace.CurrentCamera.FieldOfView = 70
+                print("FOV reset to default: 70")
             end
+        else
+            warn("CurrentCamera not found for applyFOV")
         end
     end
 
@@ -858,9 +921,12 @@ local function initialize()
                     task.wait(antiAFKInterval)
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(5), 0)
+                        print("Anti-AFK applied")
                     end
                 end
             end)
+        else
+            warn("Character or HumanoidRootPart not found for toggleAntiAFK")
         end
     end
 
@@ -873,23 +939,28 @@ local function initialize()
                     for _, part in pairs(player.Character:GetDescendants()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
+                            print("NoClip applied to part:", part.Name)
                         end
                     end
                 else
                     if noClipConnection then
                         noClipConnection:Disconnect()
                         noClipConnection = nil
+                        print("NoClip disabled")
                     end
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         player.Character.HumanoidRootPart.CanCollide = true
                         for _, part in pairs(player.Character:GetDescendants()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = true
+                                print("Restored collision for part:", part.Name)
                             end
                         end
                     end
                 end
             end)
+        else
+            warn("Character or HumanoidRootPart not found for toggleNoClip")
         end
     end
 
@@ -899,7 +970,7 @@ local function initialize()
         local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
         if not (character and humanoid and rootPart) then
-            print("Fly failed: Character, Humanoid, or RootPart not found")
+            warn("Fly failed: Character, Humanoid, or RootPart not found")
             return
         end
 
@@ -968,38 +1039,41 @@ local function initialize()
         end
     end
 
-    -- Persist Exploits through Respawn
+    -- Persist Exploits through Respawn (debugged)
     local function handleExploitsRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            task.wait(0.5) -- Increased delay to ensure character is fully loaded
             applySpeed()
             if features.Exploits.Fly then
                 toggleFly(true)
                 print("Reapplied Fly on respawn for character:", character.Name)
             end
             if features.Exploits.InfiniteJump then
-                -- Reapply InfiniteJump logic if needed
                 userInputService.JumpRequest:Connect(function()
                     if features.Exploits.InfiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
                         player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        print("InfiniteJump applied")
                     end
                 end)
             end
             if features.Exploits.Speed then
                 applySpeed()
+                print("Reapplied Speed on respawn")
             end
             if features.Exploits.NoClip then
                 toggleNoClip(true)
+                print("Reapplied NoClip on respawn")
             end
             if features.Exploits.AntiAFK then
                 toggleAntiAFK(true)
+                print("Reapplied AntiAFK on respawn")
             end
             if features.Exploits.Spinbot then
-                -- Reapply Spinbot logic if needed
                 RunService.RenderStepped:Connect(function()
                     if features.Exploits.Spinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         local hrp = player.Character.HumanoidRootPart
                         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
+                        print("Spinbot applied")
                     end
                 end)
             end
@@ -1008,64 +1082,61 @@ local function initialize()
         localPlayer.CharacterRemoving:Connect(function(character)
             if features.Exploits.Fly then
                 toggleFly(false)
+                print("Cleaned up Fly on death")
             end
             if features.Exploits.NoClip then
                 toggleNoClip(false)
+                print("Cleaned up NoClip on death")
             end
             if features.Exploits.AntiAFK then
                 features.Exploits.AntiAFK = false -- Temporarily disable to prevent issues
+                print("Cleaned up AntiAFK on death")
+            end
+            if features.Exploits.Spinbot then
+                -- Disconnect Spinbot connection if it exists
+                for _, connection in pairs(getconnections or {}) do
+                    if connection.Function and connection.Function:match("Spinbot") then
+                        connection:Disconnect()
+                    end
+                end
+                print("Cleaned up Spinbot on death")
             end
         end)
     end
 
     handleExploitsRespawn()
 
-    -- Infinite Jump (normal, persists)
-    userInputService.JumpRequest:Connect(function()
-        if features.Exploits.InfiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-
-    -- Spinbot (normal, persists)
-    RunService.RenderStepped:Connect(function()
-        if features.Exploits.Spinbot and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = player.Character.HumanoidRootPart
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
-        end
-    end)
-
-    -- Initial Setup (normal, functional)
+    -- Initial Setup (normal, functional, debugged)
     updateGUI()
     applySpeed()
     applyFOV()
     updateFOVCircleColor()
     if features.Visuals.ESP then setupESP() end
-    if features.Aimbot.AutoLock then
-        -- Ensure Aimbot starts with auto-lock enabled
-        lockedPlayer = nil -- Reset to find new target
-    end
+    if features.Aimbot.AutoLock then lockedPlayer = nil end -- Reset Aimbot target
 
-    -- Persist GUI through Respawn
+    -- Persist GUI through Respawn (fixed)
     local function handleGUIRespawn()
         localPlayer.CharacterAdded:Connect(function(character)
-            task.wait(0.1) -- Brief delay to ensure character is fully loaded
+            task.wait(0.5) -- Increased delay to ensure character is fully loaded
+            frame.Visible = true -- Ensure GUI is visible after respawn
             updateGUI() -- Reinitialize GUI settings
             if features.Visuals.ESP then setupESP() end
             if features.Aimbot.AutoLock then lockedPlayer = nil end -- Reset Aimbot target
             if features.Settings.Animations and animationTrack then animationTrack:Play() end
             applySpeed()
             if features.Exploits.Fly then toggleFly(true) end
+            print("GUI reinitialized after respawn")
         end)
 
         localPlayer.CharacterRemoving:Connect(function(character)
             frame.Visible = false -- Hide GUI temporarily during respawn
-            cleanupESP() -- Clean up ESP objects
+            cleanupESP()
             if animationTrack then
                 animationTrack:Stop()
                 animationTrack = nil
             end
             if features.Exploits.Fly then toggleFly(false) end
+            print("GUI cleaned up on death")
         end)
     end
 
