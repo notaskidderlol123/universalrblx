@@ -83,7 +83,7 @@ end
 -- Feature Toggles
 local features = {
 	Aimbot = {Aimlock = false, TeamCheck = false, DeadCheck = false, FOVCircle = false, SilentAim = false},
-	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false, HealthBar = false, Distance = false, TracerPosition = 1}, -- 1 = Bottom, 2 = Center, 3 = Top
+	Visuals = {ESP = false, RenderLocally = false, Tracers = false, FOVChanger = false, TeamCheck = false, DeadCheck = false},
 	Exploits = {InfiniteJump = false, Spinbot = false, Fly = false, Speed = false, AntiAFK = false, NoClip = false},
 	Settings = {}
 }
@@ -97,7 +97,7 @@ local tracerColor = Color3.fromRGB(255, 255, 255)
 local fovCircleSize = 100
 local fovCircleColor = Color3.fromRGB(255, 255, 255)
 
-local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle, healthBarToggle, distanceToggle, tracerPositionSlider
+local aimlockToggle, teamCheckToggle, deadCheckToggle, fovCircleToggle, fovCircleSlider, silentAimToggle, espToggle, renderLocallyToggle, tracersToggle, fovToggle, fovSlider, teamCheckVisualToggle, deadCheckVisualToggle, infiniteJumpToggle, spinbotToggle, flyToggle, flySpeedSlider, speedToggle, speedSlider, antiAFKToggle, antiAFKSlider, noClipToggle
 
 function createToggle(name, position, parent, tabName, callback, color)
 	local toggle = Instance.new("TextButton")
@@ -117,7 +117,7 @@ function createToggle(name, position, parent, tabName, callback, color)
 	return toggle
 end
 
-function createSlider(name, position, parent, min, max, default, callback, color, options)
+function createSlider(name, position, parent, min, max, default, callback, color)
 	local sliderFrame = Instance.new("Frame")
 	sliderFrame.Size = UDim2.new(0, 200, 0, 30)
 	sliderFrame.Position = position
@@ -127,7 +127,7 @@ function createSlider(name, position, parent, min, max, default, callback, color
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(0, 100, 0, 30)
 	label.Position = UDim2.new(0, 0, 0, 0)
-	label.Text = name .. ": " .. (options and options[default] or default)
+	label.Text = name .. ": " .. default
 	label.BackgroundTransparency = 1
 	label.TextColor3 = Color3.fromRGB(255, 255, 255)
 	label.Parent = sliderFrame
@@ -152,10 +152,11 @@ function createSlider(name, position, parent, min, max, default, callback, color
 	userInputService.InputChanged:Connect(function(input)
 		if draggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then
 			local relativeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-			local value = min + math.floor((max - min) * relativeX + 0.5) -- Snap to integers
+			local value = min + (max - min) * relativeX
 			fill.Size = UDim2.new(relativeX, 0, 1, 0)
-			label.Text = name .. ": " .. (options and options[value] or value)
-			callback(value)
+			local roundedValue = math.floor(value + 0.5)
+			label.Text = name .. ": " .. roundedValue
+			callback(roundedValue)
 			slider:TweenSize(UDim2.new(0, 105, 0, 12), "Out", "Quad", 0.1, true)
 			task.wait(0.1)
 			slider:TweenSize(UDim2.new(0, 100, 0, 10), "Out", "Quad", 0.1, true)
@@ -241,10 +242,6 @@ function updateGUI()
 			end
 		end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
-		tracerPositionSlider = createSlider("Tracer Position", UDim2.new(0, 50, 0, yOffset), scrollingFrame, 1, 3, features.Visuals.TracerPosition, function(value)
-			features.Visuals.TracerPosition = value
-		end, Color3.fromRGB(50, 150, 50), {1 = "Bottom", 2 = "Center", 3 = "Top"})
-		yOffset += 50
 		fovToggle = createToggle("FOVChanger", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
 			features.Visuals.FOVChanger = not features.Visuals.FOVChanger
 			toggle.Text = "FOV Changer: " .. (features.Visuals.FOVChanger and "ON" or "OFF")
@@ -268,18 +265,6 @@ function updateGUI()
 			toggle.Text = "Dead Check: " .. (features.Visuals.DeadCheck and "ON" or "OFF")
 			if features.Visuals.ESP then setupESP() end
 			if features.Visuals.Tracers then setupTracers() end
-		end, Color3.fromRGB(50, 150, 50))
-		yOffset += 50
-		healthBarToggle = createToggle("HealthBar", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
-			features.Visuals.HealthBar = not features.Visuals.HealthBar
-			toggle.Text = "Health Bar: " .. (features.Visuals.HealthBar and "ON" or "OFF")
-			if features.Visuals.ESP then setupESP() end
-		end, Color3.fromRGB(50, 150, 50))
-		yOffset += 50
-		distanceToggle = createToggle("Distance", UDim2.new(0, 50, 0, yOffset), scrollingFrame, "Visuals", function(toggle)
-			features.Visuals.Distance = not features.Visuals.Distance
-			toggle.Text = "Distance: " .. (features.Visuals.Distance and "ON" or "OFF")
-			if features.Visuals.ESP then setupESP() end
 		end, Color3.fromRGB(50, 150, 50))
 		yOffset += 50
 	elseif currentTab == "Exploits" then
@@ -354,57 +339,47 @@ userInputService.InputBegan:Connect(function(input)
 	end
 end)
 
--- Aimbot Functionality (Fixed for Right-Click)
-local aimlockActive = false
-
+-- Aimbot Functionality
 userInputService.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton2 then -- Right-click
-		if features.Aimbot.Aimlock then
-			aimlockActive = true
-			while aimlockActive and features.Aimbot.Aimlock do
-				local target = getNearestPlayer(true)
-				if target and target.Character and target.Character:FindFirstChild("Head") then
-					local humanoid = target.Character:FindFirstChild("Humanoid")
-					if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
-						(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
-						local camera = workspace.CurrentCamera
-						if camera then
-							if features.Aimbot.FOVCircle then
-								local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
-								local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-								local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-								if distance <= fovCircleSize / 2 then
-									camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
-								end
-							else
-								camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
-							end
-						end
-					end
-				end
-				task.wait() -- Yield to prevent freezing
-			end
-		end
-		if features.Aimbot.SilentAim then
-			local target = getNearestPlayer(true)
-			if target and target.Character and target.Character:FindFirstChild("Head") then
-				local humanoid = target.Character:FindFirstChild("Humanoid")
-				if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
-					(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+	if features.Aimbot.Aimlock and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local target = getNearestPlayer(true)
+		if target and target.Character and target.Character:FindFirstChild("Head") then
+			local humanoid = target.Character:FindFirstChild("Humanoid")
+			if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
+				(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+				if features.Aimbot.FOVCircle then
 					local camera = workspace.CurrentCamera
 					if camera then
-						if features.Aimbot.FOVCircle then
-							local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
-							local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-							local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-							if distance <= fovCircleSize / 2 then
-								userInputService.MouseDeltaSensitivity = 0
-								userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-								task.wait(0.1)
-								userInputService.MouseBehavior = Enum.MouseBehavior.Default
-								userInputService.MouseDeltaSensitivity = 1
-							end
-						else
+						local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
+						local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+						local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+						if distance <= fovCircleSize / 2 then
+							camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+						end
+					end
+				else
+					local camera = workspace.CurrentCamera
+					if camera then
+						camera.CFrame = CFrame.new(camera.CFrame.Position, target.Character.Head.Position)
+					end
+				end
+			end
+		end
+	end
+
+	if features.Aimbot.SilentAim and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local target = getNearestPlayer(true)
+		if target and target.Character and target.Character:FindFirstChild("Head") then
+			local humanoid = target.Character:FindFirstChild("Humanoid")
+			if (not features.Aimbot.TeamCheck or (player.Team ~= target.Team)) and 
+				(not features.Aimbot.DeadCheck or (humanoid and humanoid.Health > 0)) then
+				if features.Aimbot.FOVCircle then
+					local camera = workspace.CurrentCamera
+					if camera then
+						local screenPos, onScreen = camera:WorldToScreenPoint(target.Character.Head.Position)
+						local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+						local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+						if distance <= fovCircleSize / 2 then
 							userInputService.MouseDeltaSensitivity = 0
 							userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 							task.wait(0.1)
@@ -412,15 +387,15 @@ userInputService.InputBegan:Connect(function(input)
 							userInputService.MouseDeltaSensitivity = 1
 						end
 					end
+				else
+					userInputService.MouseDeltaSensitivity = 0
+					userInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+					task.wait(0.1)
+					userInputService.MouseBehavior = Enum.MouseBehavior.Default
+					userInputService.MouseDeltaSensitivity = 1
 				end
 			end
 		end
-	end
-end)
-
-userInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton2 then
-		aimlockActive = false
 	end
 end)
 
@@ -505,10 +480,8 @@ function updateFOVCircleColor()
 	end
 end
 
--- ESP Functionality with Health Bars and Distance
+-- ESP Functionality
 local espHighlights = {}
-local espBillboards = {}
-
 runService.RenderStepped:Connect(function()
 	if features.Visuals.ESP then
 		setupESP()
@@ -518,17 +491,12 @@ runService.RenderStepped:Connect(function()
 end)
 
 function setupESP()
-	local camera = workspace.CurrentCamera
-	if not camera then return end
-
 	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-		local character = otherPlayer.Character
-		local humanoid = character and character:FindFirstChild("Humanoid")
-		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		local shouldRender = false
 		local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
+		local humanoid = otherPlayer.Character and otherPlayer.Character:FindFirstChild("Humanoid")
 		local isAlive = humanoid and humanoid.Health > 0
 
-		local shouldRender = false
 		if otherPlayer ~= player then
 			shouldRender = (not features.Visuals.TeamCheck or not isTeammate) and 
 				(not features.Visuals.DeadCheck or isAlive)
@@ -537,99 +505,34 @@ function setupESP()
 				(not features.Visuals.DeadCheck or isAlive)
 		end
 
-		if shouldRender and character and rootPart then
-			local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
-			local visible = onScreen or (not onScreen and checkThroughWalls(rootPart.Position, player.Character and player.Character.HumanoidRootPart))
-
-			-- Highlight ESP
-			local highlight = espHighlights[otherPlayer]
-			if visible then
-				if not highlight then
-					highlight = Instance.new("Highlight")
-					highlight.Name = "ESPHighlight"
-					highlight.FillColor = isTeammate and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-					highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-					highlight.Parent = character
-					espHighlights[otherPlayer] = highlight
-				end
-			else
-				if highlight then
-					highlight:Destroy()
-					espHighlights[otherPlayer] = nil
-				end
-			end
-
-			-- Billboard GUI for Health Bar and Distance
-			local billboard = espBillboards[otherPlayer]
-			if visible then
-				if not billboard then
-					billboard = Instance.new("BillboardGui")
-					billboard.Name = "ESPBilboard"
-					billboard.Adornee = rootPart
-					billboard.Size = UDim2.new(0, 100, 0, 50)
-					billboard.StudsOffset = Vector3.new(0, 3, 0)
-					billboard.AlwaysOnTop = true
-					billboard.Parent = gui
-
-					local nameLabel = Instance.new("TextLabel")
-					nameLabel.Size = UDim2.new(1, 0, 0, 20)
-					nameLabel.Position = UDim2.new(0, 0, 0, 0)
-					nameLabel.BackgroundTransparency = 1
-					nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-					nameLabel.TextStrokeTransparency = 0
-					nameLabel.Text = otherPlayer.Name
-					nameLabel.Parent = billboard
-
-					local healthBarFrame = Instance.new("Frame")
-					healthBarFrame.Size = UDim2.new(1, 0, 0, 10)
-					healthBarFrame.Position = UDim2.new(0, 0, 0, 20)
-					healthBarFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-					healthBarFrame.Parent = billboard
-
-					local healthBarFill = Instance.new("Frame")
-					healthBarFill.Size = UDim2.new(1, 0, 1, 0)
-					healthBarFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-					healthBarFill.Parent = healthBarFrame
-
-					local distanceLabel = Instance.new("TextLabel")
-					distanceLabel.Size = UDim2.new(1, 0, 0, 20)
-					distanceLabel.Position = UDim2.new(0, 0, 0, 30)
-					distanceLabel.BackgroundTransparency = 1
-					distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-					distanceLabel.TextStrokeTransparency = 0
-					distanceLabel.Text = "0 studs"
-					distanceLabel.Parent = billboard
-
-					espBillboards[otherPlayer] = billboard
-				end
-
-				-- Update Health Bar and Distance
-				if humanoid then
-					local healthBarFill = billboard:FindFirstChild("Frame"):FindFirstChild("Frame")
-					if features.Visuals.HealthBar and healthBarFill then
-						local healthPercent = humanoid.Health / humanoid.MaxHealth
-						healthBarFill.Size = UDim2.new(healthPercent, 0, 1, 0)
+		if shouldRender and otherPlayer.Character then
+			local character = otherPlayer.Character
+			local rootPart = character:FindFirstChild("HumanoidRootPart")
+			if rootPart then
+				local highlight = espHighlights[otherPlayer]
+				local camera = workspace.CurrentCamera
+				local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
+				if onScreen or (not onScreen and checkThroughWalls(rootPart.Position, player.Character and player.Character.HumanoidRootPart)) then
+					if not highlight then
+						highlight = Instance.new("Highlight")
+						highlight.Name = "ESPHighlight"
+						highlight.FillColor = isTeammate and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+						highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+						highlight.Parent = character
+						espHighlights[otherPlayer] = highlight
 					end
-					local distanceLabel = billboard:FindFirstChild("DistanceLabel")
-					if features.Visuals.Distance and distanceLabel and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-						local distance = (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-						distanceLabel.Text = math.floor(distance) .. " studs"
+				else
+					if highlight then
+						highlight:Destroy()
+						espHighlights[otherPlayer] = nil
 					end
-				end
-			else
-				if billboard then
-					billboard:Destroy()
-					espBillboards[otherPlayer] = nil
 				end
 			end
 		else
-			if espHighlights[otherPlayer] then
-				espHighlights[otherPlayer]:Destroy()
+			local highlight = espHighlights[otherPlayer]
+			if highlight then
+				highlight:Destroy()
 				espHighlights[otherPlayer] = nil
-			end
-			if espBillboards[otherPlayer] then
-				espBillboards[otherPlayer]:Destroy()
-				espBillboards[otherPlayer] = nil
 			end
 		end
 	end
@@ -641,16 +544,10 @@ function cleanupESP()
 			highlight:Destroy()
 		end
 	end
-	for _, billboard in pairs(espBillboards) do
-		if billboard then
-			billboard:Destroy()
-		end
-	end
 	espHighlights = {}
-	espBillboards = {}
 end
 
--- Tracers Functionality with Position Slider
+-- Tracers Functionality
 local tracerLines = {}
 runService.RenderStepped:Connect(function()
 	if features.Visuals.Tracers then
@@ -661,21 +558,17 @@ runService.RenderStepped:Connect(function()
 end)
 
 function setupTracers()
-	local camera = workspace.CurrentCamera
-	if not camera then return end
-
 	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
 		if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
 			local root = otherPlayer.Character.HumanoidRootPart
 			local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
 			local isTeammate = player.Team and otherPlayer.Team and player.Team == otherPlayer.Team
 			local isAlive = humanoid and humanoid.Health > 0
-
 			if (not features.Visuals.TeamCheck or not isTeammate) and 
 				(not features.Visuals.DeadCheck or isAlive) then
 				local tracer = tracerLines[otherPlayer]
+				local camera = workspace.CurrentCamera
 				local screenPos, onScreen = camera:WorldToScreenPoint(root.Position)
-
 				if onScreen or (not onScreen and checkThroughWalls(root.Position, player.Character and player.Character.HumanoidRootPart)) then
 					if not tracer then
 						tracer = Instance.new("Part")
@@ -683,26 +576,16 @@ function setupTracers()
 						tracer.CanCollide = false
 						tracer.Transparency = 0.5
 						tracer.Color = tracerColor
-						tracer.Material = Enum.Material.Neon
 						tracer.Parent = workspace
 						tracerLines[otherPlayer] = tracer
 					end
-
-					-- Adjust start position based on TracerPosition
-					local startPos
-					if features.Visuals.TracerPosition == 1 then -- Bottom
-						startPos = camera:ViewportPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y).Origin
-					elseif features.Visuals.TracerPosition == 2 then -- Center
-						startPos = camera.CFrame.Position + (camera.CFrame.LookVector * 2)
-					else -- Top (3)
-						startPos = camera:ViewportPointToRay(camera.ViewportSize.X / 2, 0).Origin
-					end
-					local endPos = root.Position
+					local startPos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y) -- Bottom center of screen
+					local worldPos, _ = camera:WorldToScreenPoint(root.Position)
+					local endPos = Vector2.new(worldPos.X, worldPos.Y)
 					local direction = (endPos - startPos).Unit
 					local distance = (endPos - startPos).Magnitude
-
-					tracer.Size = Vector3.new(0.03, 0.03, distance) -- Even thinner tracers
-					tracer.CFrame = CFrame.new(startPos + (direction * distance / 2), endPos)
+					tracer.Size = Vector3.new(0.1, 0.1, distance / 10)
+					tracer.CFrame = CFrame.lookAt(camera.CFrame.Position, root.Position) * CFrame.Angles(0, math.pi / 2, 0) * CFrame.new(0, 0, -distance / 20)
 				else
 					if tracer then
 						tracer:Destroy()
@@ -725,12 +608,10 @@ function setupTracers()
 end
 
 function cleanupTracers()
-	for _, tracer in pairs(tracerLines) do
-		if tracer then
-			tracer:Destroy()
-		end
+	for player, tracer in pairs(tracerLines) do
+		tracer:Destroy()
+		tracerLines[player] = nil
 	end
-	tracerLines = {}
 end
 
 local function checkThroughWalls(targetPos, sourcePos)
@@ -762,12 +643,10 @@ end
 
 -- Apply FOV
 function applyFOV()
-	if workspace.CurrentCamera then
-		if features.Visuals.FOVChanger then
-			workspace.CurrentCamera.FieldOfView = fov
-		else
-			workspace.CurrentCamera.FieldOfView = 70
-		end
+	if features.Visuals.FOVChanger and workspace.CurrentCamera then
+		workspace.CurrentCamera.FieldOfView = fov
+	else
+		workspace.CurrentCamera.FieldOfView = 70
 	end
 end
 
@@ -926,16 +805,10 @@ player.CharacterRemoving:Connect(function(character)
 		end
 		print("Cleaned up Fly on character removal for:", character.Name)
 	end
-end)
-
--- Tracer Color Update
-function updateTracerColor()
-	tracerColor = Color3.fromRGB(255, 255, 255)
 end
 
--- Initial Setup
+-- Initial GUI setup and apply initial settings
 updateGUI()
 applySpeed()
 applyFOV()
 updateFOVCircleColor()
-updateTracerColor()
